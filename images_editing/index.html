@@ -651,138 +651,76 @@
             padding: 12px 24px;
         }
 
-        /* Drawing History Section */
-        .drawing-history-section {
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid var(--border);
-        }
 
-        .drawing-history-header {
+
+        /* Image Preview Modal */
+        .image-preview-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
-        .drawing-history-title {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .drawing-history-clear {
-            font-size: 11px;
-            color: var(--text-muted);
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-
-        .drawing-history-clear:hover {
-            background: var(--bg-tertiary);
-            color: var(--error);
-        }
-
-        .drawing-history-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .drawing-history-item {
-            position: relative;
-            aspect-ratio: 1;
-            border-radius: var(--radius-sm);
-            overflow: hidden;
-            border: 2px solid transparent;
-            cursor: pointer;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
             transition: var(--transition);
+            padding: 20px;
         }
 
-        .drawing-history-item:hover {
-            border-color: var(--primary);
+        .image-preview-overlay.show {
+            opacity: 1;
+            visibility: visible;
         }
 
-        .drawing-history-item.active {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+        .image-preview-container {
+            position: relative;
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
         }
 
-        .drawing-history-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .image-preview-img {
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            border-radius: var(--radius-md);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         }
 
-        .drawing-history-item .history-time {
+        .image-preview-close {
             position: absolute;
-            bottom: 0;
-            left: 0;
+            top: -50px;
             right: 0;
-            background: linear-gradient(transparent, rgba(0,0,0,0.8));
-            color: white;
-            font-size: 9px;
-            padding: 12px 4px 4px;
-            text-align: center;
-        }
-
-        .drawing-history-item .history-delete {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: rgba(0, 0, 0, 0.6);
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
             border: none;
+            border-radius: 50%;
+            color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;
             transition: var(--transition);
-            z-index: 10;
         }
 
-        .drawing-history-item:hover .history-delete {
-            opacity: 1;
+        .image-preview-close:hover {
+            background: rgba(255, 255, 255, 0.2);
         }
 
-        .drawing-history-item .history-delete:hover {
-            background: var(--error);
+        .image-preview-close svg {
+            width: 24px;
+            height: 24px;
         }
 
-        .drawing-history-item .history-delete svg {
-            width: 12px;
-            height: 12px;
-            color: white;
-        }
-
-        .drawing-history-item .history-badge {
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            background: var(--primary);
-            color: white;
-            font-size: 8px;
-            padding: 1px 4px;
-            border-radius: 3px;
-        }
-
-        .drawing-history-empty {
-            grid-column: 1 / -1;
-            text-align: center;
-            color: var(--text-muted);
+        .image-preview-info {
+            color: rgba(255, 255, 255, 0.8);
             font-size: 12px;
-            padding: 20px;
+            text-align: center;
         }
 
         /* Prompt Area */
@@ -1405,6 +1343,11 @@
                 min-height: 300px;
                 padding: 20px;
             }
+
+            .drawing-history-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 16px;
+            }
         }
 
         @media (max-width: 640px) {
@@ -1435,6 +1378,24 @@
                 height: 100%;
                 max-height: 100%;
                 border-radius: 0;
+            }
+
+            .drawing-history-grid {
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+                gap: 10px;
+            }
+
+            .image-preview-overlay {
+                padding: 10px;
+            }
+
+            .image-preview-close {
+                top: 10px;
+                right: 10px;
+            }
+
+            .image-preview-img {
+                max-height: 70vh;
             }
         }
 
@@ -1546,6 +1507,12 @@
             <span>Image Edit Studio</span>
         </div>
         <div class="header-actions">
+            <a href="/" class="btn btn-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                返回主页面
+            </a>
             <button class="btn btn-ghost btn-icon" id="historyBtn" title="History">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"/>
@@ -1819,25 +1786,23 @@
                     </div>
                 </div>
 
-                <!-- Drawing History Section -->
-                <div class="drawing-history-section" id="drawingHistorySection">
-                    <div class="drawing-history-header">
-                        <span class="drawing-history-title">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                                <circle cx="8.5" cy="8.5" r="1.5"/>
-                                <polyline points="21 15 16 10 5 21"/>
-                            </svg>
-                            Drawing History
-                        </span>
-                        <button class="drawing-history-clear" id="clearDrawingHistory">Clear All</button>
-                    </div>
-                    <div class="drawing-history-grid" id="drawingHistoryGrid">
-                        <div class="drawing-history-empty">No drawing history yet</div>
-                    </div>
-                </div>
+
             </div>
         </main>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div class="image-preview-overlay" id="imagePreviewOverlay">
+        <div class="image-preview-container">
+            <button class="image-preview-close" id="closeImagePreview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <img class="image-preview-img" id="imagePreviewImg" src="" alt="Preview">
+            <div class="image-preview-info" id="imagePreviewInfo"></div>
+        </div>
     </div>
 
     <!-- Mask Editor Modal -->
@@ -2079,14 +2044,7 @@
 	                    return [];
 	                }
 	            })(),
-	            drawingHistory: (() => {
-	                try {
-	                    return JSON.parse(localStorage.getItem('drawingHistory') || '[]');
-	                } catch {
-	                    localStorage.removeItem('drawingHistory');
-	                    return [];
-	                }
-	            })(),
+
 	            isGenerating: false,
 	            currentZoom: 100,
 	            canvasZoom: 100,
@@ -2149,10 +2107,13 @@
             showPromptHistory: document.getElementById('showPromptHistory'),
             promptHistoryDropdown: document.getElementById('promptHistoryDropdown'),
 
-            // Drawing History
-            drawingHistorySection: document.getElementById('drawingHistorySection'),
-            drawingHistoryGrid: document.getElementById('drawingHistoryGrid'),
-            clearDrawingHistory: document.getElementById('clearDrawingHistory'),
+
+
+            // Image Preview Modal
+            imagePreviewOverlay: document.getElementById('imagePreviewOverlay'),
+            imagePreviewImg: document.getElementById('imagePreviewImg'),
+            imagePreviewInfo: document.getElementById('imagePreviewInfo'),
+            closeImagePreview: document.getElementById('closeImagePreview'),
 
             // Results
             resultArea: document.getElementById('resultArea'),
@@ -2689,221 +2650,174 @@
         }
 
 	        // ==========================================
-	        // Drawing History Management
+	        // API Integration for Image Repository
 	        // ==========================================
-	        const DRAWING_HISTORY_SNAPSHOT_MAX_DIM = 1024;
-	        const DRAWING_HISTORY_SNAPSHOT_MIME = (() => {
-	            const canvas = document.createElement('canvas');
-	            canvas.width = 1;
-	            canvas.height = 1;
-	            let dataUrl = '';
-	            try {
-	                dataUrl = canvas.toDataURL('image/webp');
-	            } catch {
-	                dataUrl = '';
-	            }
-	            return dataUrl.startsWith('data:image/webp') ? 'image/webp' : 'image/png';
-	        })();
-	        const DRAWING_HISTORY_SNAPSHOT_WEBP_QUALITY = 0.85;
 
-	        function persistDrawingHistory() {
-	            const key = 'drawingHistory';
-	            const serialize = () => JSON.stringify(state.drawingHistory);
+	        function getCookie(name) {
+	            const value = `; ${document.cookie}`;
+	            const parts = value.split(`; ${name}=`);
+	            if (parts.length === 2) return parts.pop().split(';').shift();
+	            return null;
+	        }
 
+	        function csrfHeaders() {
+	            const token = getCookie('csrf_token');
+	            return token ? { 'X-CSRF-Token': token } : {};
+	        }
+
+	        async function checkAuthentication() {
 	            try {
-	                localStorage.setItem(key, serialize());
+	                const res = await fetch('/api/v1/auth/me', { credentials: 'include' });
+	                if (!res.ok) {
+	                    window.location.href = '/login?next=/image';
+	                    return false;
+	                }
 	                return true;
 	            } catch (err) {
-	                // Some browsers need space to rewrite an existing key.
-	                try {
-	                    localStorage.removeItem(key);
-	                    localStorage.setItem(key, serialize());
-	                    return true;
-	                } catch (err2) {
-	                    err = err2;
-	                }
-
-	                // Quota exceeded: drop oldest items until it fits.
-	                while (state.drawingHistory.length > 1) {
-	                    state.drawingHistory.pop();
-	                    try {
-	                        localStorage.removeItem(key);
-	                        localStorage.setItem(key, serialize());
-	                        showToast('warning', 'Storage limit reached', 'Older drawing history items were removed to free space');
-	                        return true;
-	                    } catch (err3) {
-	                        err = err3;
-	                    }
-	                }
-
-	                console.warn('Failed to persist drawing history:', err);
-	                showToast('warning', 'Storage full', 'Drawing history will not be saved. Consider clearing browser storage.');
+	                console.error('Authentication check failed:', err);
+	                window.location.href = '/login?next=/image';
 	                return false;
 	            }
 	        }
 
-	        function createDrawingHistoryAssets(imageData) {
-	            const thumbnailSize = 100;
-	            const snapshotMaxDim = DRAWING_HISTORY_SNAPSHOT_MAX_DIM;
-	            const snapshotMime = DRAWING_HISTORY_SNAPSHOT_MIME;
-
-	            return new Promise((resolve) => {
-	                const img = new Image();
-
-	                img.onload = () => {
-	                    // Thumbnail (square crop)
-	                    const thumbCanvas = document.createElement('canvas');
-	                    thumbCanvas.width = thumbnailSize;
-	                    thumbCanvas.height = thumbnailSize;
-	                    const thumbCtx = thumbCanvas.getContext('2d');
-	                    if (!thumbCtx) {
-	                        resolve({ thumbnail: null, snapshot: imageData });
+	        async function loadImagesFromRepository() {
+	            try {
+	                const res = await fetch('/api/v1/images?limit=50', { credentials: 'include' });
+	                if (!res.ok) {
+	                    if (res.status === 401) {
+	                        window.location.href = '/login?next=/image';
 	                        return;
 	                    }
+	                    throw new Error('Failed to load images');
+	                }
 
-	                    const size = Math.min(img.width, img.height);
-	                    const sx = (img.width - size) / 2;
-	                    const sy = (img.height - size) / 2;
-	                    thumbCtx.drawImage(img, sx, sy, size, size, 0, 0, thumbnailSize, thumbnailSize);
-	                    const thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.7);
+	                const images = await res.json();
+                // state.drawingHistory = images.map(img => ({ ... })); // Removed
+                /*
+	                state.drawingHistory = images.map(img => ({
+	                    id: img.id,
+	                    imageUrl: img.image_url,
+	                    thumbnail: img.image_url,
+	                    time: img.created_at,
+	                    model: img.model,
+	                    prompt: img.prompt,
+	                    title: img.title
+	                }));
+                */
 
-	                    // Snapshot (downscale and/or re-encode for storage)
-	                    const needsResize = Math.max(img.width, img.height) > snapshotMaxDim;
-	                    let snapshot = imageData;
-
-	                    if (snapshotMime === 'image/webp' || needsResize) {
-	                        const scale = Math.min(1, snapshotMaxDim / Math.max(img.width, img.height));
-	                        const targetWidth = Math.max(1, Math.round(img.width * scale));
-	                        const targetHeight = Math.max(1, Math.round(img.height * scale));
-
-	                        const snapshotCanvas = document.createElement('canvas');
-	                        snapshotCanvas.width = targetWidth;
-	                        snapshotCanvas.height = targetHeight;
-	                        const snapshotCtx = snapshotCanvas.getContext('2d');
-	                        if (!snapshotCtx) {
-	                            resolve({ thumbnail, snapshot: imageData });
-	                            return;
-	                        }
-	                        snapshotCtx.imageSmoothingEnabled = true;
-	                        snapshotCtx.imageSmoothingQuality = 'high';
-	                        snapshotCtx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-	                        if (snapshotMime === 'image/webp') {
-	                            snapshot = snapshotCanvas.toDataURL('image/webp', DRAWING_HISTORY_SNAPSHOT_WEBP_QUALITY);
-	                        } else {
-	                            snapshot = snapshotCanvas.toDataURL('image/png');
-	                        }
-	                    }
-
-	                    resolve({ thumbnail, snapshot });
-	                };
-
-	                img.onerror = () => {
-	                    resolve({ thumbnail: null, snapshot: imageData });
-	                };
-
-	                img.src = imageData;
-	            });
+	                // renderDrawingHistory(); // Removed
+	            } catch (err) {
+	                console.error('Failed to load images from repository:', err);
+	                showToast('error', 'Load failed', err.message || 'Failed to load images from repository');
+	            }
 	        }
 
-	        async function saveToDrawingHistory(imageData) {
-	            const { thumbnail, snapshot } = await createDrawingHistoryAssets(imageData);
-	            const historyItem = {
-	                id: Date.now(),
-	                imageData: snapshot || imageData,
-	                thumbnail: thumbnail,
-	                time: new Date().toISOString(),
-	                imageIndex: state.currentImageIndex,
-	                imageName: state.images[state.currentImageIndex]?.name || 'Unknown'
-	            };
-
-            state.drawingHistory.unshift(historyItem);
-
-            // Keep only last 20 items
-	            if (state.drawingHistory.length > 20) {
-	                state.drawingHistory = state.drawingHistory.slice(0, 20);
+	        async function saveImageToRepository(imageUrl, model, prompt) {
+	            if (!imageUrl) {
+	                console.warn('No image URL to save');
+	                return null;
 	            }
 
-	            persistDrawingHistory();
-	            renderDrawingHistory();
+	            try {
+	                const payload = {
+	                    image_url: imageUrl,
+	                    model: model || 'unknown',
+	                    prompt: prompt || '',
+	                    status: 'completed',
+	                    title: null
+	                };
+
+	                const res = await fetch('/api/v1/images', {
+	                    method: 'POST',
+	                    headers: {
+	                        'Content-Type': 'application/json',
+	                        ...csrfHeaders()
+	                    },
+	                    credentials: 'include',
+	                    body: JSON.stringify(payload)
+	                });
+
+	                if (!res.ok) {
+	                    if (res.status === 413) {
+	                        showToast('error', '存储空间不足', 'Storage quota exceeded');
+	                        return null;
+	                    }
+	                    const errorText = await res.text();
+	                    throw new Error(errorText || 'Failed to save image');
+	                }
+
+	                const savedImage = await res.json();
+	                showToast('success', '保存成功', 'Image saved to repository');
+
+	                // Reload images from repository
+	                await loadImagesFromRepository();
+
+	                return savedImage;
+	            } catch (err) {
+	                console.error('Failed to save image to repository:', err);
+	                showToast('error', '保存失败', err.message || 'Failed to save image');
+	                return null;
+	            }
 	        }
 
-        function renderDrawingHistory() {
-            if (state.drawingHistory.length === 0) {
-                elements.drawingHistoryGrid.innerHTML = '<div class="drawing-history-empty">No drawing history yet</div>';
-                return;
-            }
+	        async function deleteImageFromRepository(imageId) {
+	            if (!confirm('确定要删除这条记录吗？')) return;
 
-            elements.drawingHistoryGrid.innerHTML = state.drawingHistory.map((item, index) => `
-                <div class="drawing-history-item" data-index="${index}" data-id="${item.id}">
-                    <img src="${item.thumbnail || item.imageData}" alt="History ${index + 1}">
-                    <span class="history-time">${formatTime(new Date(item.time))}</span>
-                    ${index === 0 ? '<span class="history-badge">Latest</span>' : ''}
-                    <button class="history-delete" data-id="${item.id}" title="Delete this history item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-            `).join('');
+	            try {
+	                const res = await fetch(`/api/v1/images/${encodeURIComponent(imageId)}`, {
+	                    method: 'DELETE',
+	                    headers: csrfHeaders(),
+	                    credentials: 'include'
+	                });
 
-            // Add click handlers for restoring history
-            elements.drawingHistoryGrid.querySelectorAll('.drawing-history-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    // Don't restore if clicking delete button
-                    if (e.target.closest('.history-delete')) return;
-                    restoreFromDrawingHistory(parseInt(item.dataset.index));
-                });
-            });
+	                if (!res.ok) {
+	                    throw new Error('Failed to delete image');
+	                }
 
-            // Add click handlers for delete buttons
-            elements.drawingHistoryGrid.querySelectorAll('.history-delete').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteDrawingHistoryItem(parseInt(btn.dataset.id));
-                });
-            });
-        }
+	                showToast('success', '删除成功', 'Image deleted from repository');
 
-        function restoreFromDrawingHistory(index) {
-            const historyItem = state.drawingHistory[index];
-            if (!historyItem) return;
-
-            if (state.currentImageIndex >= 0 && state.images[state.currentImageIndex]) {
-                // Restore the image data
-                state.images[state.currentImageIndex].data = historyItem.imageData;
-                state.images[state.currentImageIndex].hasMask = true;
-
-                // Reinitialize canvas
-                initCanvas();
-                renderImagePreviews();
-
-                showToast('success', 'History restored', `Restored drawing from ${formatTime(new Date(historyItem.time))}`);
-            } else {
-                showToast('warning', 'No image selected', 'Please select an image first');
-            }
-        }
-
-        function clearAllDrawingHistory() {
-            state.drawingHistory = [];
-            localStorage.removeItem('drawingHistory');
-            renderDrawingHistory();
-            showToast('success', 'History cleared', 'All drawing history has been removed');
-        }
-
-	        function deleteDrawingHistoryItem(id) {
-	            const index = state.drawingHistory.findIndex(item => item.id === id);
-	            if (index === -1) return;
-
-	            state.drawingHistory.splice(index, 1);
-	            persistDrawingHistory();
-	            renderDrawingHistory();
-	            showToast('success', 'Deleted', 'History item removed');
+	                // Reload images from repository
+	                await loadImagesFromRepository();
+	            } catch (err) {
+	                console.error('Failed to delete image from repository:', err);
+	                showToast('error', '删除失败', err.message || 'Failed to delete image');
+	            }
 	        }
 
-        // ==========================================
-        // Prompt Management
-        // ==========================================
+
+
+	        // Show image preview modal
+	        function showImagePreview(imageUrl, date) {
+	            elements.imagePreviewImg.src = imageUrl;
+	            elements.imagePreviewInfo.textContent = `生成时间: ${date}`;
+	            elements.imagePreviewOverlay.classList.add('show');
+	        }
+
+	        // Close image preview modal
+	        function closeImagePreview() {
+	            elements.imagePreviewOverlay.classList.remove('show');
+	            setTimeout(() => {
+	                elements.imagePreviewImg.src = '';
+	            }, 300);
+	        }
+
+	        function formatTime(date) {
+	            const now = new Date();
+	            const diff = now - date;
+	            const seconds = Math.floor(diff / 1000);
+	            const minutes = Math.floor(seconds / 60);
+	            const hours = Math.floor(minutes / 60);
+	            const days = Math.floor(hours / 24);
+
+	            if (days > 0) return `${days}天前`;
+	            if (hours > 0) return `${hours}小时前`;
+	            if (minutes > 0) return `${minutes}分钟前`;
+	            return '刚刚';
+	        }
+
+	        // ==========================================
+	        // Prompt Management
+	        // ==========================================
         function updateCharCount() {
             const count = elements.promptInput.value.length;
             elements.charCount.textContent = count;
@@ -3041,18 +2955,7 @@
 	            });
 	        }
 
-	        function deleteGenerationHistoryItem(index) {
-	            if (Number.isNaN(index) || index < 0 || index >= state.generationHistory.length) return;
 
-	            state.generationHistory.splice(index, 1);
-	            try {
-	                localStorage.setItem('generationHistory', JSON.stringify(state.generationHistory));
-	            } catch (err) {
-	                console.warn('Failed to persist generation history:', err);
-	            }
-	            renderGenerationHistory();
-	            showToast('success', 'Deleted', 'Generation history item removed');
-	        }
 
         // ==========================================
         // API Call - Fixed to send masked images
@@ -3147,6 +3050,9 @@
                 savePromptToHistory(prompt);
                 saveToGenerationHistory(prompt, imageUrl);
                 showToast('success', 'Image generated', 'Your image has been created successfully');
+
+                // Refresh repository to show the newly saved image
+                loadImagesFromRepository();
 
             } catch (error) {
                 console.error('Generation error:', error);
@@ -3309,6 +3215,14 @@
                 }
             });
 
+            // Image Preview Modal
+            elements.closeImagePreview.addEventListener('click', closeImagePreview);
+            elements.imagePreviewOverlay.addEventListener('click', (e) => {
+                if (e.target === elements.imagePreviewOverlay) {
+                    closeImagePreview();
+                }
+            });
+
             // Canvas mouse events
             elements.maskCanvas.addEventListener('mousedown', startDrawing);
             elements.maskCanvas.addEventListener('mousemove', draw);
@@ -3356,8 +3270,7 @@
             elements.canvasZoomOutBtn.addEventListener('click', canvasZoomOut);
             elements.canvasZoomResetBtn.addEventListener('click', canvasZoomReset);
 
-            // Drawing history
-            elements.clearDrawingHistory.addEventListener('click', clearAllDrawingHistory);
+            // Drawing history - removed clearDrawingHistory event (now using API)
 
             // Prompt
             elements.promptInput.addEventListener('input', updateCharCount);
@@ -3456,6 +3369,13 @@
             renderGenerationHistory();
             renderDrawingHistory();
             updateCharCount();
+
+            // Check authentication and load images from API
+            checkAuthentication().then(isAuth => {
+                if (isAuth) {
+                    loadImagesFromRepository();
+                }
+            });
         }
 
         // Start the application
