@@ -26,8 +26,8 @@ class WebAuthRedirectMiddleware(BaseHTTPMiddleware):
         if path.startswith("/api/") or path in {self._login_path, "/health", "/favicon.ico"}:
             return await call_next(request)
 
-        if path.startswith("/static/") or path.startswith("/images_editing/"):
-            if path.endswith(".html") and path not in {"/static/login.html", "/images_editing/index.html"}:
+        if path.startswith("/static/"):
+            if path.endswith(".html") and path not in {"/static/login.html"}:
                 return self._redirect_to_login(request)
             return await call_next(request)
 

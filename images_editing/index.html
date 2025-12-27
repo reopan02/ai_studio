@@ -301,7 +301,61 @@
 
 
             </div>
+
+            <!-- Inline Generation History Section -->
+            <div class="inline-history-section" id="inlineHistorySection">
+                <div class="inline-history-header">
+                    <div class="inline-history-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span>Generation History</span>
+                        <span class="inline-history-count" id="inlineHistoryCount">0</span>
+                    </div>
+                    <button class="inline-history-toggle" id="inlineHistoryToggle" title="Toggle history">
+                        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="inline-history-content" id="inlineHistoryContent">
+                    <div class="inline-history-grid" id="inlineHistoryGrid">
+                        <p class="inline-history-empty">No generation history yet. Create your first image!</p>
+                    </div>
+                    <div class="inline-history-show-more" id="inlineHistoryShowMore" style="display: none;">
+                        <button class="btn btn-ghost" id="showMoreHistoryBtn">
+                            Show more
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </main>
+    </div>
+
+    <!-- Edit History Prompt Modal -->
+    <div class="edit-prompt-modal-overlay" id="editPromptModalOverlay">
+        <div class="edit-prompt-modal">
+            <div class="edit-prompt-modal-header">
+                <h3>Edit Prompt</h3>
+                <button class="btn btn-ghost btn-icon" id="closeEditPromptModal">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="edit-prompt-modal-body">
+                <textarea class="edit-prompt-textarea" id="editPromptTextarea" placeholder="Enter prompt..."></textarea>
+            </div>
+            <div class="edit-prompt-modal-footer">
+                <button class="btn btn-ghost" id="cancelEditPromptBtn">Cancel</button>
+                <button class="btn btn-primary" id="saveEditPromptBtn">Save</button>
+            </div>
+        </div>
     </div>
 
     <!-- Image Preview Modal -->

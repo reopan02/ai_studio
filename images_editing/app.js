@@ -92,6 +92,10 @@ function extractErrorMessage(data, fallback) {
 	                    return [];
 	                }
 	            })(),
+            inlineHistoryCollapsed: localStorage.getItem('inlineHistoryCollapsed') === 'true',
+            inlineHistoryLimit: 6,
+            inlineHistoryShowAll: false,
+            editingHistoryIndex: -1,
 
 	            isGenerating: false,
 	            currentZoom: 100,
@@ -188,6 +192,22 @@ const elements = {
     historyPanel: document.getElementById('historyPanel'),
     closeHistoryBtn: document.getElementById('closeHistoryBtn'),
     historyList: document.getElementById('historyList'),
+
+    // Inline History
+    inlineHistorySection: document.getElementById('inlineHistorySection'),
+    inlineHistoryToggle: document.getElementById('inlineHistoryToggle'),
+    inlineHistoryContent: document.getElementById('inlineHistoryContent'),
+    inlineHistoryGrid: document.getElementById('inlineHistoryGrid'),
+    inlineHistoryCount: document.getElementById('inlineHistoryCount'),
+    inlineHistoryShowMore: document.getElementById('inlineHistoryShowMore'),
+    showMoreHistoryBtn: document.getElementById('showMoreHistoryBtn'),
+
+    // Edit Prompt Modal
+    editPromptModalOverlay: document.getElementById('editPromptModalOverlay'),
+    editPromptTextarea: document.getElementById('editPromptTextarea'),
+    closeEditPromptModal: document.getElementById('closeEditPromptModal'),
+    cancelEditPromptBtn: document.getElementById('cancelEditPromptBtn'),
+    saveEditPromptBtn: document.getElementById('saveEditPromptBtn'),
 
     // Zoom
     imageZoomOverlay: document.getElementById('imageZoomOverlay'),
@@ -962,6 +982,7 @@ function updateCharCount() {
 	                console.warn('Failed to persist generation history:', err);
 	            }
 	            renderGenerationHistory();
+	            renderInlineHistory();
 	        }
 
 	        function renderGenerationHistory() {
@@ -1002,6 +1023,225 @@ function updateCharCount() {
 	                });
 	            });
 	        }
+
+// ==========================================
+// Inline Generation History (below prompt)
+// ==========================================
+function renderInlineHistory() {
+    const history = state.generationHistory;
+    const count = history.length;
+
+    // Update count badge
+    elements.inlineHistoryCount.textContent = count;
+
+    // Apply collapsed state
+    if (state.inlineHistoryCollapsed) {
+        elements.inlineHistorySection.classList.add('collapsed');
+    } else {
+        elements.inlineHistorySection.classList.remove('collapsed');
+    }
+
+    // Empty state
+    if (count === 0) {
+        elements.inlineHistoryGrid.innerHTML = '<p class="inline-history-empty">No generation history yet. Create your first image!</p>';
+        elements.inlineHistoryShowMore.style.display = 'none';
+        return;
+    }
+
+    // Determine how many items to show
+    const limit = state.inlineHistoryShowAll ? count : Math.min(state.inlineHistoryLimit, count);
+    const itemsToShow = history.slice(0, limit);
+
+    // Render grid items
+    elements.inlineHistoryGrid.innerHTML = itemsToShow.map((item, index) => {
+        const truncatedPrompt = item.prompt.length > 100
+            ? item.prompt.substring(0, 100) + '...'
+            : item.prompt;
+        const timeStr = formatDateTime(new Date(item.time));
+
+        return `
+            <div class="inline-history-item" data-index="${index}">
+                <div class="inline-history-item-actions">
+                    <button class="inline-history-action-btn load" data-index="${index}" title="Load prompt">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                    </button>
+                    <button class="inline-history-action-btn edit" data-index="${index}" title="Edit prompt">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="inline-history-action-btn delete" data-index="${index}" title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </button>
+                </div>
+                <img class="inline-history-item-image" src="${item.imageUrl}" alt="Generated" loading="lazy">
+                <div class="inline-history-item-info">
+                    <div class="inline-history-item-prompt" title="${item.prompt.replace(/"/g, '&quot;')}">${truncatedPrompt}</div>
+                    <div class="inline-history-item-meta">
+                        <span>${item.model}</span>
+                        <span>•</span>
+                        <span>${timeStr}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Show/hide "Show more" button
+    if (count > state.inlineHistoryLimit && !state.inlineHistoryShowAll) {
+        elements.inlineHistoryShowMore.style.display = 'flex';
+        elements.showMoreHistoryBtn.textContent = `Show more (${count - limit} more)`;
+    } else if (state.inlineHistoryShowAll && count > state.inlineHistoryLimit) {
+        elements.inlineHistoryShowMore.style.display = 'flex';
+        elements.showMoreHistoryBtn.textContent = 'Show less';
+    } else {
+        elements.inlineHistoryShowMore.style.display = 'none';
+    }
+
+    // Add event listeners for inline history items
+    initInlineHistoryEventListeners();
+}
+
+function initInlineHistoryEventListeners() {
+    // Click on item (load into result area)
+    elements.inlineHistoryGrid.querySelectorAll('.inline-history-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            // Don't trigger if clicking on action buttons
+            if (e.target.closest('.inline-history-action-btn')) return;
+
+            const index = parseInt(item.dataset.index);
+            loadHistoryItem(index);
+        });
+    });
+
+    // Load button
+    elements.inlineHistoryGrid.querySelectorAll('.inline-history-action-btn.load').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const index = parseInt(btn.dataset.index);
+            loadHistoryItem(index);
+        });
+    });
+
+    // Edit button
+    elements.inlineHistoryGrid.querySelectorAll('.inline-history-action-btn.edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const index = parseInt(btn.dataset.index);
+            openEditPromptModal(index);
+        });
+    });
+
+    // Delete button
+    elements.inlineHistoryGrid.querySelectorAll('.inline-history-action-btn.delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const index = parseInt(btn.dataset.index);
+            deleteHistoryItem(index);
+        });
+    });
+}
+
+function loadHistoryItem(index) {
+    const item = state.generationHistory[index];
+    if (!item) return;
+
+    showResult(item.imageUrl);
+    elements.promptInput.value = item.prompt;
+    updateCharCount();
+    showToast('success', 'Loaded', 'Prompt and image loaded from history');
+}
+
+function deleteHistoryItem(index) {
+    if (!confirm('Delete this generation from history?')) return;
+
+    state.generationHistory.splice(index, 1);
+    try {
+        localStorage.setItem('generationHistory', JSON.stringify(state.generationHistory));
+    } catch (err) {
+        console.warn('Failed to persist generation history:', err);
+    }
+
+    // Sync both displays
+    renderInlineHistory();
+    renderGenerationHistory();
+
+    showToast('success', 'Deleted', 'Generation removed from history');
+}
+
+function updateHistoryPrompt(index, newPrompt) {
+    if (index < 0 || index >= state.generationHistory.length) return;
+
+    state.generationHistory[index].prompt = newPrompt;
+    try {
+        localStorage.setItem('generationHistory', JSON.stringify(state.generationHistory));
+    } catch (err) {
+        console.warn('Failed to persist generation history:', err);
+    }
+
+    // Sync both displays
+    renderInlineHistory();
+    renderGenerationHistory();
+
+    showToast('success', 'Updated', 'Prompt has been updated');
+}
+
+function openEditPromptModal(index) {
+    const item = state.generationHistory[index];
+    if (!item) return;
+
+    state.editingHistoryIndex = index;
+    elements.editPromptTextarea.value = item.prompt;
+    elements.editPromptModalOverlay.classList.add('show');
+    elements.editPromptTextarea.focus();
+}
+
+function closeEditPromptModal() {
+    elements.editPromptModalOverlay.classList.remove('show');
+    state.editingHistoryIndex = -1;
+    elements.editPromptTextarea.value = '';
+}
+
+function saveEditedPrompt() {
+    if (state.editingHistoryIndex < 0) return;
+
+    const newPrompt = elements.editPromptTextarea.value.trim();
+    if (!newPrompt) {
+        showToast('error', 'Invalid', 'Prompt cannot be empty');
+        return;
+    }
+
+    updateHistoryPrompt(state.editingHistoryIndex, newPrompt);
+    closeEditPromptModal();
+}
+
+function toggleInlineHistory() {
+    state.inlineHistoryCollapsed = !state.inlineHistoryCollapsed;
+    localStorage.setItem('inlineHistoryCollapsed', state.inlineHistoryCollapsed.toString());
+
+    if (state.inlineHistoryCollapsed) {
+        elements.inlineHistorySection.classList.add('collapsed');
+    } else {
+        elements.inlineHistorySection.classList.remove('collapsed');
+    }
+}
+
+function toggleShowMoreHistory() {
+    state.inlineHistoryShowAll = !state.inlineHistoryShowAll;
+    renderInlineHistory();
+}
+
+function deleteGenerationHistoryItem(index) {
+    deleteHistoryItem(index);
+}
 
 
 
@@ -1367,6 +1607,20 @@ function initEventListeners() {
         elements.historyPanel.classList.remove('show');
     });
 
+    // Inline History
+    elements.inlineHistoryToggle.addEventListener('click', toggleInlineHistory);
+    elements.showMoreHistoryBtn.addEventListener('click', toggleShowMoreHistory);
+
+    // Edit Prompt Modal
+    elements.closeEditPromptModal.addEventListener('click', closeEditPromptModal);
+    elements.cancelEditPromptBtn.addEventListener('click', closeEditPromptModal);
+    elements.saveEditPromptBtn.addEventListener('click', saveEditedPrompt);
+    elements.editPromptModalOverlay.addEventListener('click', (e) => {
+        if (e.target === elements.editPromptModalOverlay) {
+            closeEditPromptModal();
+        }
+    });
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey || e.metaKey) {
@@ -1388,6 +1642,7 @@ function initEventListeners() {
 
         if (e.key === 'Escape') {
             closeMaskModal();
+            closeEditPromptModal();
             elements.imageZoomOverlay.classList.remove('show');
             elements.historyPanel.classList.remove('show');
         }
@@ -1415,6 +1670,7 @@ function init() {
     initToggleVisibility();
     initEventListeners();
     renderGenerationHistory();
+    renderInlineHistory();
     renderDrawingHistory();
     updateCharCount();
 
