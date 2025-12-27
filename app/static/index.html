@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video API Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="/favicon.ico">
+</head>
+<body>
+    <div class="container">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <a href="/" class="btn btn-secondary" style="padding: 8px 12px; text-decoration: none; color: inherit;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    返回
+                </a>
+                <h1>Video Generator</h1>
+            </div>
+            <a href="/storage" class="btn btn-secondary" style="text-decoration: none;">存储库</a>
+        </header>
+        
+        <main>
+            <!-- Settings Section -->
+            <section class="card settings-card">
+                <h2>配置</h2>
+	                <div class="form-group">
+	                    <label for="apiKey">API Key（提供商）</label>
+	                    <form onsubmit="return false;">
+	                        <div class="input-wrapper">
+	                            <input type="password" id="apiKey" placeholder="输入 API 提供商的 Key（用于 Authorization: Bearer）" autocomplete="current-password">
+	                            <button id="toggleApiKey" class="icon-btn" aria-label="显示/隐藏 API Key" type="button">
+	                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+	                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+	                                    <circle cx="12" cy="12" r="3"></circle>
+	                                </svg>
+	                            </button>
+	                        </div>
+	                    </form>
+	                    <div class="form-hint">该 Key 会以请求头 <code>Authorization: Bearer &lt;key&gt;</code> 发送给中转/提供商 API。</div>
+	                </div>
+	                <div class="form-group">
+	                    <label for="baseUrl">Base URL（中转 API）</label>
+	                    <input type="text" id="baseUrl" placeholder="https://api.gpt-best.com" value="https://api.gpt-best.com">
+	                    <div class="form-hint">必须是 HTTPS 的 API 根地址</div>
+	                </div>
+            </section>
+
+            <!-- Create Task Section -->
+            <section class="card create-card">
+                <h2>创建任务</h2>
+                <div class="form-group">
+                    <label for="modelSelect">模型</label>
+                    <select id="modelSelect">
+                        <option value="sora2">Sora 2</option>
+                        <option value="veo">Google Veo</option>
+                        <option value="seedance">Seedance (即梦)</option>
+                        <option value="newmodel">New Model</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="promptInput">提示词</label>
+                    <textarea id="promptInput" rows="3" placeholder="描述您想生成的视频内容..."></textarea>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="taskNameInput">任务名称（可选）</label>
+                        <input id="taskNameInput" type="text" placeholder="例如：海边日落（用于列表展示）">
+                    </div>
+                    <div class="form-group">
+                        <label for="batchCount">并发数量</label>
+                        <input id="batchCount" type="number" min="1" max="20" value="1">
+                        <div class="form-hint">一次点击可并发提交多个任务（过大将触发确认）。</div>
+                    </div>
+                </div>
+
+                <!-- Sora2 / Sora2 Pro Params -->
+                <div id="sora2Params" class="sora-params">
+                    <div class="form-group">
+                        <label for="soraVariant">Sora 版本</label>
+                        <select id="soraVariant">
+                            <option value="sora-2">sora-2</option>
+                            <option value="sora-2-pro">sora-2-pro</option>
+                        </select>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="aspectRatio">画幅比例</label>
+                            <select id="aspectRatio">
+                                <option value="16:9">16:9</option>
+                                <option value="9:16">9:16</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="duration">时长（秒）</label>
+                            <select id="duration">
+                                <option value="10">10</option>
+                                <option value="15">15</option>
+                                <option value="25">25</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>选项</label>
+                        <div class="checkbox-row">
+                            <label class="checkbox-item">
+                                <input id="soraHd" type="checkbox">
+                                <span>HD（仅 Pro）</span>
+                            </label>
+                            <label class="checkbox-item">
+                                <input id="soraWatermark" type="checkbox">
+                                <span>水印</span>
+                            </label>
+                            <label class="checkbox-item">
+                                <input id="soraPrivate" type="checkbox">
+                                <span>私有</span>
+                            </label>
+                        </div>
+                        <div class="form-hint">提示：选择图片或填写图片 URL 即为图生视频；不填则为文生视频。</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>参考图片</label>
+                        <div class="image-uploader">
+                            <input id="soraImages" class="hidden-file-input" type="file" accept="image/*" multiple>
+
+                            <div id="soraDropzone" class="dropzone" tabindex="0" aria-label="拖拽图片上传">
+                                <div class="dropzone-inner">
+                                    <div class="dropzone-icon" aria-hidden="true">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="17 8 12 3 7 8" />
+                                            <line x1="12" y1="3" x2="12" y2="15" />
+                                        </svg>
+                                    </div>
+                                    <div class="dropzone-text">
+                                        <div class="dropzone-title">拖拽图片到此处，或粘贴截图</div>
+                                        <div class="dropzone-subtitle">支持 JPG/PNG/WebP/GIF（将自动转为 Base64）</div>
+                                    </div>
+                                    <div class="dropzone-actions">
+                                        <button id="soraPickFiles" type="button" class="btn btn-primary">选择图片</button>
+                                        <button id="soraClearImages" type="button" class="btn btn-secondary">清空</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="image-meta">
+                                <span id="soraImageCount" class="meta-text">0 张图片</span>
+                                <span class="meta-text">点击缩略图可预览/编辑</span>
+                            </div>
+
+                            <div id="soraImagePreview" class="image-preview-grid" aria-label="图片预览"></div>
+
+                            <div class="url-add">
+                                <textarea id="soraImageSourceInput" rows="2" placeholder="粘贴图片 URL 或 data:image/...base64"></textarea>
+                                <button id="soraAddImageSources" type="button" class="btn btn-secondary">添加到预览</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="notifyHook">回调地址（notify_hook，可选）</label>
+                        <input id="notifyHook" type="url" placeholder="https://example.com/webhook">
+                    </div>
+                </div>
+
+                <button id="generateBtn" class="primary-btn">
+                    <span class="btn-text">生成视频</span>
+                    <span class="loader"></span>
+                </button>
+            </section>
+
+            <!-- Status & Logs Section -->
+            <section class="dashboard-grid">
+                <!-- Real-time Status -->
+                <div class="card status-card">
+                    <h2>实时状态</h2>
+                    <div id="statusContainer" class="status-empty">
+                        <p>暂无任务</p>
+                    </div>
+                    <div id="statusContent" class="task-panel">
+                        <div class="task-toolbar">
+                            <span id="taskSummary" class="meta-text">0 个任务</span>
+                            <div class="task-toolbar-actions">
+                                <button id="clearCompletedBtn" type="button" class="btn btn-secondary">清理已完成</button>
+                            </div>
+                        </div>
+
+                        <div class="task-split">
+                            <div class="task-list-wrap" aria-label="任务列表区">
+                                <div id="taskList" class="task-list" aria-label="任务列表"></div>
+                                <div id="taskListFooter" class="task-list-footer hidden">
+                                    <button id="loadMoreTasksBtn" type="button" class="btn btn-secondary">加载更多</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Image Preview / Edit Modal -->
+    <div id="imageModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="imageModalTitle">
+        <div class="modal-backdrop" id="modalBackdrop"></div>
+        <div class="modal-content" role="document">
+            <div class="modal-header">
+                <h3 id="imageModalTitle">图片预览</h3>
+                <button id="modalClose" class="icon-btn" type="button" aria-label="关闭">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-image-wrapper">
+                    <img id="modalImage" alt="预览">
+                </div>
+                <div class="form-group">
+                    <label for="modalValue">URL / Base64（可编辑）</label>
+                    <textarea id="modalValue" rows="4"></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="modalCopy" type="button" class="btn btn-secondary">复制</button>
+                <button id="modalSave" type="button" class="btn btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

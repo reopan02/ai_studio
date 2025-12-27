@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>存储库 - Video API</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="/favicon.ico">
+    <style>
+        .storage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .storage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .video-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(209, 209, 214, 0.45);
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+        .video-card:hover {
+            box-shadow: var(--shadow-md);
+        }
+        .video-thumb {
+            width: 100%;
+            height: 180px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .video-thumb video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .video-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .video-info {
+            padding: 16px;
+        }
+        .video-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .video-meta {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: flex;
+            gap: 8px;
+        }
+        .video-prompt {
+            font-size: 14px;
+            color: var(--text-primary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 16px;
+            height: 42px;
+            line-height: 1.5;
+        }
+        .video-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-sora2 { background: #E8F4FF; color: #0071e3; }
+        .badge-veo { background: #E6FFFA; color: #00A67E; }
+        .badge-seedance { background: #FFF7E6; color: #FF9500; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="storage-header">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <a href="/" class="btn btn-secondary" style="padding: 8px 12px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    返回
+                </a>
+                <h1>存储库</h1>
+            </div>
+            <a href="/dashboard" class="btn btn-primary">新建任务</a>
+            <a href="/image" class="btn btn-secondary">Image Editing</a>
+        </header>
+
+        <div id="storageGrid" class="storage-grid">
+            <!-- Loaded via JS -->
+            <div class="empty-state">加载中...</div>
+        </div>
+
+        <h2 style="margin: 28px 0 12px;">Images</h2>
+        <div id="imageGrid" class="storage-grid">
+            <div class="empty-state">Loading...</div>
+        </div>
+    </div>
+
+    <script src="/static/storage.js"></script>
+    <script>
+        StoragePage.init();
+    </script>
+</body>
+</html>
