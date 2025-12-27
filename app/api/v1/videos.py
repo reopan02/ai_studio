@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import logging
 
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import load_only
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,7 @@ from app.core.task_manager import TaskManager
 from app.db.session import get_db
 from app.models.database import User, UserVideo
 from app.models.schemas import (
+    PaginatedResponse,
     UserVideoCreate,
     UserVideoDetail,
     UserVideoGenerateRequest,
@@ -99,16 +101,20 @@ async def generate_and_store_video_sync(
     return video
 
 
-@router.get("/videos", response_model=list[UserVideoSummary])
+@router.get("/videos", response_model=PaginatedResponse[UserVideoSummary])
 async def list_videos(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    limit: int = 50,
-    offset: int = 0,
+    page: int = 1,
+    size: int = 50,
+    search: Optional[str] = None,
+    model: Optional[str] = None,
 ):
-    limit = max(1, min(200, int(limit)))
-    offset = max(0, int(offset))
+    page = max(1, int(page))
+    size = max(1, min(200, int(size)))
+    offset = (page - 1) * size
 
+    # Base query for items
     stmt = select(UserVideo).options(
         load_only(
             UserVideo.id,
@@ -123,11 +129,38 @@ async def list_videos(
             UserVideo.updated_at,
         )
     )
+
+    # Base query for count
+    count_stmt = select(func.count()).select_from(UserVideo)
+
+    # Apply filters
+    filters = []
     if not user.is_admin:
-        stmt = stmt.where(UserVideo.user_id == user.id)
-    stmt = stmt.order_by(desc(UserVideo.created_at)).offset(offset).limit(limit)
+        filters.append(UserVideo.user_id == user.id)
+    if search:
+        filters.append(UserVideo.title.ilike(f"%{search}%"))
+    if model:
+        filters.append(UserVideo.model == model)
+
+    if filters:
+        stmt = stmt.where(*filters)
+        count_stmt = count_stmt.where(*filters)
+
+    # Execute count
+    total = (await db.execute(count_stmt)).scalar() or 0
+    pages = (total + size - 1) // size
+
+    # Execute items query
+    stmt = stmt.order_by(desc(UserVideo.created_at)).offset(offset).limit(size)
     videos = (await db.execute(stmt)).scalars().all()
-    return videos
+
+    return PaginatedResponse(
+        items=videos,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages,
+    )
 
 
 @router.get("/videos/{video_id}", response_model=UserVideoDetail)

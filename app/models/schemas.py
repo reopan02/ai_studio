@@ -2,11 +2,20 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Generic, TypeVar
 
 from pydantic import BaseModel, EmailStr, Field
+
 from pydantic.config import ConfigDict
 
+T = TypeVar("T")
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+    page: int
+    size: int
+    pages: int
 
 class TaskStatus(str, Enum):
     PENDING = "pending"
