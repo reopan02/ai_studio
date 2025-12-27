@@ -72,6 +72,7 @@ app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 
 # Mount static files
 app.mount("/static", CacheControlStaticFiles(directory="app/static"), name="static")
+app.mount("/images_editing", CacheControlStaticFiles(directory="images_editing"), name="images_editing")
 
 
 @app.get("/")
