@@ -18,8 +18,8 @@ class Settings(BaseSettings):
 
     JWT_SECRET_KEY: Optional[str] = None
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    JWT_SESSION_EXPIRE_DAYS: int = 30
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 365 
+    JWT_SESSION_EXPIRE_DAYS: int = 365
 
     COOKIE_SECURE: bool = False
     COOKIE_SAMESITE: str = "lax"
