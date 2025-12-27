@@ -109,8 +109,8 @@ class UserVideo(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    title = Column(String(200), nullable=True, index=True)
-    model = Column(String(50), nullable=False, index=True)
+    title = Column(String(200), nullable=True)
+    model = Column(String(50), nullable=False)
     prompt = Column(Text, nullable=False)
 
     status = Column(String(20), nullable=False, default="completed", index=True)
@@ -133,8 +133,8 @@ class UserImage(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    title = Column(String(200), nullable=True, index=True)
-    model = Column(String(100), nullable=False, index=True)
+    title = Column(String(200), nullable=True)
+    model = Column(String(100), nullable=False)
     prompt = Column(Text, nullable=False)
 
     status = Column(String(20), nullable=False, default="completed", index=True)

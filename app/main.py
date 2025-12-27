@@ -1,12 +1,14 @@
 import asyncio
 from contextlib import asynccontextmanager, suppress
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.api.v1 import admin, auth, categories, images, logs, storage, tasks, video, videos
+from app.api.deps import get_current_user
 from app.config import get_settings
+from app.models.database import User
 from app.core.backup import backup_loop
 from app.core.static_files import CacheControlStaticFiles
 from app.db.init import init_db
@@ -92,7 +94,7 @@ async def dashboard_page():
     return FileResponse("app/static/index.html")
 
 @app.get("/image")
-async def image_page():
+async def image_page(user: User = Depends(get_current_user)):
     return FileResponse("images_editing/index.html")
 
 

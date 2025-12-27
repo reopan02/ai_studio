@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
@@ -17,13 +17,7 @@ from app.config import get_settings
 from app.core.encryption import EncryptionError, decrypt_for_user, encrypt_for_user
 from app.db.session import get_db
 from app.models.database import User, UserImage
-from app.models.schemas import (
-    PaginatedResponse,
-    UserImageCreate,
-    UserImageDetail,
-    UserImageSummary,
-    UserImageUpdate,
-)
+from app.models.schemas import UserImageCreate, UserImageDetail, UserImageSummary, UserImageUpdate
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -166,20 +160,16 @@ async def images_edits_and_store(
     )
 
 
-@router.get("/images", response_model=PaginatedResponse[UserImageSummary])
+@router.get("/images", response_model=list[UserImageSummary])
 async def list_images(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    page: int = 1,
-    size: int = 50,
-    search: Optional[str] = None,
-    model: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
 ):
-    page = max(1, int(page))
-    size = max(1, min(200, int(size)))
-    offset = (page - 1) * size
+    limit = max(1, min(200, int(limit)))
+    offset = max(0, int(offset))
 
-    # Base query for items
     stmt = select(UserImage).options(
         load_only(
             UserImage.id,
@@ -194,38 +184,11 @@ async def list_images(
             UserImage.updated_at,
         )
     )
-
-    # Base query for count
-    count_stmt = select(func.count()).select_from(UserImage)
-
-    # Apply filters
-    filters = []
     if not user.is_admin:
-        filters.append(UserImage.user_id == user.id)
-    if search:
-        filters.append(UserImage.title.ilike(f"%{search}%"))
-    if model:
-        filters.append(UserImage.model == model)
-
-    if filters:
-        stmt = stmt.where(*filters)
-        count_stmt = count_stmt.where(*filters)
-
-    # Execute count
-    total = (await db.execute(count_stmt)).scalar() or 0
-    pages = (total + size - 1) // size
-
-    # Execute items query
-    stmt = stmt.order_by(desc(UserImage.created_at)).offset(offset).limit(size)
+        stmt = stmt.where(UserImage.user_id == user.id)
+    stmt = stmt.order_by(desc(UserImage.created_at)).offset(offset).limit(limit)
     items = (await db.execute(stmt)).scalars().all()
-
-    return PaginatedResponse(
-        items=items,
-        total=total,
-        page=page,
-        size=size,
-        pages=pages,
-    )
+    return items
 
 
 @router.get("/images/{image_id}", response_model=UserImageDetail)
