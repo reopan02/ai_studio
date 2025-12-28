@@ -3,9 +3,38 @@ const STORAGE_KEYS = {
     baseUrl: 'video_base_url'
 };
 
+const IMAGE_PLACEHOLDER_SRC =
+    'data:image/svg+xml;charset=utf-8,' +
+    encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">' +
+            '<rect width="320" height="200" fill="#111827"/>' +
+            '<rect x="52" y="40" width="216" height="120" rx="12" fill="none" stroke="#9CA3AF" stroke-width="6"/>' +
+            '<path d="M76 142l54-64 44 52 30-36 70 84H76z" fill="#374151"/>' +
+            '<circle cx="116" cy="82" r="10" fill="#6B7280"/>' +
+            '<line x1="92" y1="62" x2="228" y2="138" stroke="#9CA3AF" stroke-width="6"/>' +
+            '<line x1="228" y1="62" x2="92" y2="138" stroke="#9CA3AF" stroke-width="6"/>' +
+        '</svg>'
+    );
+
 function normalizeApiKey(value) {
     const raw = String(value || '').trim();
     return raw.replace(/^bearer\s+/i, '').trim();
+}
+
+function applyImageFallbacks(root, selector) {
+    if (!root) return;
+    root.querySelectorAll(selector).forEach((img) => {
+        img.addEventListener(
+            'error',
+            () => {
+                if (img.dataset.fallbackApplied) return;
+                img.dataset.fallbackApplied = 'true';
+                img.alt = 'Image unavailable';
+                img.src = IMAGE_PLACEHOLDER_SRC;
+            },
+            { once: true }
+        );
+    });
 }
 
 function getCookie(name) {
@@ -993,7 +1022,7 @@ function updateCharCount() {
 
 	            elements.historyList.innerHTML = state.generationHistory.map((item, index) => `
 	                <div class="history-item" data-index="${index}">
-	                    <img class="history-item-image" src="${item.imageUrl}" alt="Generated">
+	                    <img class="history-item-image" src="${item.imageUrl}" alt="Generated" loading="lazy" decoding="async">
 	                    <div class="history-item-content">
 	                        <div class="history-item-prompt">${item.prompt}</div>
 	                        <div class="history-item-meta">${item.model} - ${formatTime(new Date(item.time))}</div>
@@ -1022,6 +1051,8 @@ function updateCharCount() {
 	                    deleteGenerationHistoryItem(parseInt(btn.dataset.index));
 	                });
 	            });
+
+                applyImageFallbacks(elements.historyList, '.history-item-image');
 	        }
 
 // ==========================================
@@ -1108,6 +1139,8 @@ function renderInlineHistory() {
 
     // Add event listeners for inline history items
     initInlineHistoryEventListeners();
+
+    applyImageFallbacks(elements.inlineHistoryGrid, '.inline-history-item-image');
 }
 
 function initInlineHistoryEventListeners() {
@@ -1588,6 +1621,12 @@ function initEventListeners() {
     elements.downloadBtn.addEventListener('click', downloadImage);
     elements.shareBtn.addEventListener('click', shareImage);
     elements.fullscreenBtn.addEventListener('click', showFullscreen);
+    elements.resultImage.addEventListener('error', () => {
+        const current = elements.resultImage.getAttribute('src') || '';
+        if (current === IMAGE_PLACEHOLDER_SRC) return;
+        elements.resultImage.alt = 'Image unavailable';
+        elements.resultImage.src = IMAGE_PLACEHOLDER_SRC;
+    });
 
     // Fullscreen overlay
     elements.closeZoomBtn.addEventListener('click', () => {
@@ -1671,7 +1710,6 @@ function init() {
     initEventListeners();
     renderGenerationHistory();
     renderInlineHistory();
-    renderDrawingHistory();
     updateCharCount();
 
     // Check authentication and load images from API

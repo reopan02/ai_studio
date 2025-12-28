@@ -23,6 +23,17 @@ document.addEventListener('DOMContentLoaded', () => {
         soraImagePreview: document.getElementById('soraImagePreview'),
         soraImageSourceInput: document.getElementById('soraImageSourceInput'),
         soraAddImageSources: document.getElementById('soraAddImageSources'),
+        soraUploadFeedback: document.getElementById('soraUploadFeedback'),
+        soraUploadText: document.getElementById('soraUploadText'),
+        soraUploadProgress: document.getElementById('soraUploadProgress'),
+        soraUploadMeta: document.getElementById('soraUploadMeta'),
+        promptImages: document.getElementById('promptImages'),
+        promptDropzone: document.getElementById('promptDropzone'),
+        promptPickFiles: document.getElementById('promptPickFiles'),
+        promptUploadFeedback: document.getElementById('promptUploadFeedback'),
+        promptUploadText: document.getElementById('promptUploadText'),
+        promptUploadProgress: document.getElementById('promptUploadProgress'),
+        promptUploadMeta: document.getElementById('promptUploadMeta'),
         notifyHook: document.getElementById('notifyHook'),
         generateBtn: document.getElementById('generateBtn'),
         statusContainer: document.getElementById('statusContainer'),
@@ -39,7 +50,28 @@ document.addEventListener('DOMContentLoaded', () => {
         modalValue: document.getElementById('modalValue'),
         modalCopy: document.getElementById('modalCopy'),
         modalSave: document.getElementById('modalSave'),
-        toastContainer: document.getElementById('toastContainer')
+        toastContainer: document.getElementById('toastContainer'),
+        // New unified layout elements
+        historyBtn: document.getElementById('historyBtn'),
+        historyPanel: document.getElementById('historyPanel'),
+        closeHistoryBtn: document.getElementById('closeHistoryBtn'),
+        saveConfigBtn: document.getElementById('saveConfigBtn'),
+        resetConfigBtn: document.getElementById('resetConfigBtn'),
+        charCount: document.getElementById('charCount'),
+        statusDot: document.getElementById('statusDot'),
+        statusText: document.getElementById('statusText'),
+        inlineHistorySection: document.getElementById('inlineHistorySection'),
+        inlineHistoryToggle: document.getElementById('inlineHistoryToggle'),
+        inlineHistoryContent: document.getElementById('inlineHistoryContent'),
+        inlineHistoryGrid: document.getElementById('inlineHistoryGrid'),
+        inlineHistoryCount: document.getElementById('inlineHistoryCount'),
+        showMoreHistoryBtn: document.getElementById('showMoreHistoryBtn'),
+        resultPlaceholder: document.getElementById('resultPlaceholder'),
+        loadingState: document.getElementById('loadingState'),
+        resultContainer: document.getElementById('resultContainer'),
+        resultVideo: document.getElementById('resultVideo'),
+        progressFill: document.getElementById('progressFill'),
+        progressText: document.getElementById('progressText')
     };
 
     const CONFIG = {
@@ -55,7 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
         createConcurrency: 4,
         pollConcurrency: 8,
         saveConcurrency: 2,
-        maxLogsPerTask: 200
+        maxLogsPerTask: 200,
+        imageCompressThresholdBytes: 5 * 1024 * 1024,
+        imageMaxDimension: 2048
     };
 
     const imagesState = {
@@ -115,10 +149,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Event Listeners
-    els.toggleApiKey.addEventListener('click', () => {
-        els.apiKey.type = els.apiKey.type === 'password' ? 'text' : 'password';
-    });
+    initToggleVisibility();
+
+    function initToggleVisibility() {
+        document.querySelectorAll('.toggle-visibility').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-target') || '';
+                const input = targetId ? document.getElementById(targetId) : null;
+                if (!input) return;
+                input.type = input.type === 'password' ? 'text' : 'password';
+            });
+        });
+    }
 
     // --- Helpers (Restored) ---
 
@@ -355,17 +397,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    els.soraPickFiles.addEventListener('click', () => els.soraImages.click());
-    els.soraImages.addEventListener('change', async () => {
-        const files = els.soraImages.files ? Array.from(els.soraImages.files) : [];
-        await addFiles(files);
-        els.soraImages.value = '';
-    });
-    els.soraClearImages.addEventListener('click', () => {
-        imagesState.items = [];
-        renderImagePreview();
-        log('已清空参考图片', 'info');
-    });
+    if (els.soraPickFiles && els.soraImages) {
+        els.soraPickFiles.addEventListener('click', () => els.soraImages.click());
+        els.soraImages.addEventListener('change', async () => {
+            const files = els.soraImages.files ? Array.from(els.soraImages.files) : [];
+            await addFiles(files, { source: 'sora' });
+            els.soraImages.value = '';
+        });
+    }
+
+    if (els.promptPickFiles && els.promptImages) {
+        els.promptPickFiles.addEventListener('click', () => els.promptImages.click());
+        els.promptImages.addEventListener('change', async () => {
+            const files = els.promptImages.files ? Array.from(els.promptImages.files) : [];
+            await addFiles(files, { source: 'prompt' });
+            els.promptImages.value = '';
+        });
+    }
+    if (els.soraClearImages) {
+        els.soraClearImages.addEventListener('click', () => {
+            imagesState.items = [];
+            renderImagePreview();
+            log('已清空参考图片', 'info');
+        });
+    }
 
     els.soraAddImageSources.addEventListener('click', () => {
         const raw = els.soraImageSourceInput.value;
@@ -397,6 +452,510 @@ document.addEventListener('DOMContentLoaded', () => {
         tasksState.renderLimit += CONFIG.renderPageSize;
         renderTaskList();
     });
+
+    // --- Unified Layout Event Handlers ---
+
+    // History panel toggle
+    if (els.historyBtn) {
+        els.historyBtn.addEventListener('click', () => {
+            els.historyPanel?.classList.add('open');
+            document.body.classList.add('panel-open');
+        });
+    }
+    if (els.closeHistoryBtn) {
+        els.closeHistoryBtn.addEventListener('click', () => {
+            els.historyPanel?.classList.remove('open');
+            document.body.classList.remove('panel-open');
+        });
+    }
+
+    // Close panel when clicking outside
+    els.historyPanel?.addEventListener('click', (e) => {
+        if (e.target === els.historyPanel) {
+            els.historyPanel.classList.remove('open');
+            document.body.classList.remove('panel-open');
+        }
+    });
+
+    // Collapsible sections
+    document.querySelectorAll('.collapsible-header').forEach(header => {
+        const targetId = header.dataset.target;
+        const content = document.getElementById(targetId);
+        if (!content) return;
+
+        // Restore collapsed state from localStorage
+        const savedState = localStorage.getItem(`collapsed_${targetId}`);
+        if (savedState === 'true') {
+            header.classList.add('collapsed');
+            content.classList.add('collapsed');
+        }
+
+        header.addEventListener('click', () => {
+            const isCollapsed = header.classList.toggle('collapsed');
+            content.classList.toggle('collapsed', isCollapsed);
+            localStorage.setItem(`collapsed_${targetId}`, String(isCollapsed));
+        });
+    });
+
+    // Config save/reset buttons
+    if (els.saveConfigBtn) {
+        els.saveConfigBtn.addEventListener('click', () => {
+            localStorage.setItem('video_api_key', els.apiKey.value);
+            try {
+                const normalized = normalizeApiBaseUrl(els.baseUrl.value);
+                localStorage.setItem('video_base_url', normalized);
+                els.baseUrl.value = normalized;
+            } catch (e) {
+                log(`Base URL 错误: ${e.message}`, 'error');
+            }
+            toast('配置已保存', 'success');
+        });
+    }
+
+    if (els.resetConfigBtn) {
+        els.resetConfigBtn.addEventListener('click', () => {
+            if (confirm('确定要重置配置吗？这将清除保存的 API Key 和 Base URL。')) {
+                localStorage.removeItem('video_api_key');
+                localStorage.removeItem('video_base_url');
+                els.apiKey.value = '';
+                els.baseUrl.value = 'https://api.gpt-best.com';
+                toast('配置已重置', 'info');
+            }
+        });
+    }
+
+    // Character count update
+    if (els.promptInput && els.charCount) {
+        const updateCharCount = () => {
+            els.charCount.textContent = `${els.promptInput.value.length} 字符`;
+        };
+        els.promptInput.addEventListener('input', updateCharCount);
+        updateCharCount();
+    }
+
+    // Inline history section toggle
+    if (els.inlineHistoryToggle && els.inlineHistoryContent) {
+        const savedHistoryState = localStorage.getItem('inlineHistoryCollapsed');
+        if (savedHistoryState === 'true') {
+            els.inlineHistorySection?.classList.add('collapsed');
+        }
+
+        els.inlineHistoryToggle.addEventListener('click', () => {
+            const isCollapsed = els.inlineHistorySection?.classList.toggle('collapsed');
+            localStorage.setItem('inlineHistoryCollapsed', String(isCollapsed));
+        });
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Escape to close panels
+        if (e.key === 'Escape') {
+            if (els.historyPanel?.classList.contains('open')) {
+                els.historyPanel.classList.remove('open');
+                document.body.classList.remove('panel-open');
+                e.preventDefault();
+            }
+            const editModal = document.getElementById('editPromptModalOverlay');
+            if (editModal && !editModal.classList.contains('hidden')) {
+                editModal.classList.add('hidden');
+                e.preventDefault();
+            }
+        }
+        // Ctrl+Enter to submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            if (document.activeElement === els.promptInput) {
+                e.preventDefault();
+                handleSubmit();
+            }
+        }
+    });
+
+    // --- Inline History State & Functions ---
+    const inlineHistoryState = {
+        items: [],
+        displayLimit: 6,
+        loading: false
+    };
+
+    async function loadInlineHistory() {
+        if (inlineHistoryState.loading) return;
+        inlineHistoryState.loading = true;
+
+        try {
+            const res = await fetch('/api/v1/videos?limit=50', {
+                credentials: 'include',
+                headers: csrfHeaders()
+            });
+            if (!res.ok) {
+                if (res.status === 401) {
+                    inlineHistoryState.items = [];
+                    renderInlineHistory();
+                    return;
+                }
+                throw new Error(`加载失败 (${res.status})`);
+            }
+            const data = await res.json();
+            inlineHistoryState.items = Array.isArray(data) ? data : (data.items || []);
+            renderInlineHistory();
+        } catch (e) {
+            log(`加载历史记录失败: ${e.message}`, 'error');
+        } finally {
+            inlineHistoryState.loading = false;
+        }
+    }
+
+    function renderInlineHistory() {
+        if (!els.inlineHistoryGrid || !els.inlineHistoryCount) return;
+
+        const items = inlineHistoryState.items;
+        els.inlineHistoryCount.textContent = items.length;
+
+        if (items.length === 0) {
+            els.inlineHistoryGrid.innerHTML = '<div class="inline-history-empty">暂无生成记录</div>';
+            if (els.showMoreHistoryBtn) els.showMoreHistoryBtn.style.display = 'none';
+            return;
+        }
+
+        const displayItems = items.slice(0, inlineHistoryState.displayLimit);
+        els.inlineHistoryGrid.innerHTML = '';
+
+        displayItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'inline-history-item';
+            card.dataset.id = item.id;
+
+            // Thumbnail
+            const thumb = document.createElement('div');
+            thumb.className = 'inline-history-thumb';
+            if (item.video_url || item.thumbnail_url) {
+                const video = document.createElement('video');
+                video.src = item.video_url || '';
+                video.muted = true;
+                video.loop = true;
+                video.playsInline = true;
+                video.preload = 'metadata';
+                thumb.appendChild(video);
+
+                // Play on hover
+                card.addEventListener('mouseenter', () => video.play().catch(() => {}));
+                card.addEventListener('mouseleave', () => {
+                    video.pause();
+                    video.currentTime = 0;
+                });
+            } else {
+                thumb.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+            }
+
+            // Info
+            const info = document.createElement('div');
+            info.className = 'inline-history-info';
+
+            const prompt = document.createElement('div');
+            prompt.className = 'inline-history-prompt';
+            prompt.textContent = (item.prompt || '无提示词').slice(0, 60) + ((item.prompt?.length > 60) ? '...' : '');
+            prompt.title = item.prompt || '';
+
+            const meta = document.createElement('div');
+            meta.className = 'inline-history-meta';
+            const modelName = item.model || 'unknown';
+            const timeStr = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
+            meta.textContent = `${modelName} · ${timeStr}`;
+
+            info.appendChild(prompt);
+            info.appendChild(meta);
+
+            // Actions (hover-reveal)
+            const actions = document.createElement('div');
+            actions.className = 'inline-history-actions';
+
+            const loadBtn = document.createElement('button');
+            loadBtn.className = 'inline-history-btn';
+            loadBtn.title = '加载';
+            loadBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>';
+            loadBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                loadHistoryItem(item);
+            });
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'inline-history-btn';
+            editBtn.title = '编辑提示词';
+            editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openEditPromptModal(item);
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'inline-history-btn danger';
+            deleteBtn.title = '删除';
+            deleteBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteHistoryItem(item.id);
+            });
+
+            actions.appendChild(loadBtn);
+            actions.appendChild(editBtn);
+            actions.appendChild(deleteBtn);
+
+            card.appendChild(thumb);
+            card.appendChild(info);
+            card.appendChild(actions);
+
+            // Click to load
+            card.addEventListener('click', () => loadHistoryItem(item));
+
+            els.inlineHistoryGrid.appendChild(card);
+        });
+
+        // Show more button
+        if (els.showMoreHistoryBtn) {
+            els.showMoreHistoryBtn.style.display = items.length > inlineHistoryState.displayLimit ? '' : 'none';
+        }
+    }
+
+    function loadHistoryItem(item) {
+        if (item.prompt) {
+            els.promptInput.value = item.prompt;
+            if (els.charCount) {
+                els.charCount.textContent = `${item.prompt.length} 字符`;
+            }
+        }
+        // Show video in result area
+        if (item.video_url && els.resultContainer && els.resultVideo) {
+            els.resultPlaceholder?.classList.add('hidden');
+            els.loadingState?.classList.add('hidden');
+            els.resultContainer.classList.remove('hidden');
+            els.resultVideo.src = item.video_url;
+        }
+        toast('已加载历史记录', 'success');
+    }
+
+    function openEditPromptModal(item) {
+        const overlay = document.getElementById('editPromptModalOverlay');
+        const textarea = document.getElementById('editPromptTextarea');
+        const saveBtn = document.getElementById('saveEditPromptBtn');
+        const cancelBtn = document.getElementById('cancelEditPromptBtn');
+
+        if (!overlay || !textarea) return;
+
+        textarea.value = item.prompt || '';
+        overlay.classList.remove('hidden');
+        textarea.focus();
+
+        const handleSave = async () => {
+            const newPrompt = textarea.value.trim();
+            if (!newPrompt) {
+                toast('提示词不能为空', 'error');
+                return;
+            }
+            try {
+                const res = await fetch(`/api/v1/videos/${item.id}`, {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...csrfHeaders()
+                    },
+                    body: JSON.stringify({ prompt: newPrompt })
+                });
+                if (!res.ok) throw new Error(`更新失败 (${res.status})`);
+                overlay.classList.add('hidden');
+                toast('提示词已更新', 'success');
+                loadInlineHistory();
+            } catch (e) {
+                toast(`更新失败: ${e.message}`, 'error');
+            }
+        };
+
+        const handleCancel = () => {
+            overlay.classList.add('hidden');
+        };
+
+        // Remove old listeners
+        const newSaveBtn = saveBtn.cloneNode(true);
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+        newSaveBtn.addEventListener('click', handleSave);
+        newCancelBtn.addEventListener('click', handleCancel);
+    }
+
+    async function deleteHistoryItem(id) {
+        if (!confirm('确定要删除这条记录吗？')) return;
+        try {
+            const res = await fetch(`/api/v1/videos/${id}`, {
+                method: 'DELETE',
+                credentials: 'include',
+                headers: csrfHeaders()
+            });
+            if (!res.ok) throw new Error(`删除失败 (${res.status})`);
+            toast('已删除', 'success');
+            loadInlineHistory();
+        } catch (e) {
+            toast(`删除失败: ${e.message}`, 'error');
+        }
+    }
+
+    // Show more history button
+    if (els.showMoreHistoryBtn) {
+        els.showMoreHistoryBtn.addEventListener('click', () => {
+            inlineHistoryState.displayLimit += 6;
+            renderInlineHistory();
+        });
+    }
+
+    // Update status indicator
+    function updateStatusIndicator(status) {
+        if (!els.statusDot || !els.statusText) return;
+        els.statusDot.className = 'status-dot';
+        switch (status) {
+            case 'ready':
+                els.statusDot.classList.add('ready');
+                els.statusText.textContent = '就绪';
+                break;
+            case 'generating':
+                els.statusDot.classList.add('generating');
+                els.statusText.textContent = '生成中...';
+                break;
+            case 'error':
+                els.statusDot.classList.add('error');
+                els.statusText.textContent = '错误';
+                break;
+            default:
+                els.statusText.textContent = status;
+        }
+    }
+
+    // Update result area based on task status
+    function updateResultArea(task) {
+        if (!els.resultPlaceholder || !els.loadingState || !els.resultContainer) return;
+
+        if (!task) {
+            els.resultPlaceholder.classList.remove('hidden');
+            els.loadingState.classList.add('hidden');
+            els.resultContainer.classList.add('hidden');
+            updateStatusIndicator('ready');
+            return;
+        }
+
+        if (task.status === 'completed' && task.videoUrl) {
+            els.resultPlaceholder.classList.add('hidden');
+            els.loadingState.classList.add('hidden');
+            els.resultContainer.classList.remove('hidden');
+            if (els.resultVideo) {
+                els.resultVideo.src = task.videoUrl;
+            }
+            updateStatusIndicator('ready');
+        } else if (['pending', 'processing', 'queued'].includes(task.status)) {
+            els.resultPlaceholder.classList.add('hidden');
+            els.loadingState.classList.remove('hidden');
+            els.resultContainer.classList.add('hidden');
+            const p = typeof task.progress === 'number' ? task.progress : 0;
+            const clamped = Math.min(100, Math.max(0, p));
+            const visible = clamped > 0 ? clamped : (task.status === 'queued' ? 1 : 2);
+            if (els.progressFill) {
+                els.progressFill.style.width = `${visible}%`;
+            }
+            if (els.progressText) {
+                els.progressText.textContent = `${visible}%`;
+            }
+            updateStatusIndicator('generating');
+        } else if (task.status === 'failed') {
+            els.resultPlaceholder.classList.remove('hidden');
+            els.loadingState.classList.add('hidden');
+            els.resultContainer.classList.add('hidden');
+            updateStatusIndicator('error');
+        }
+    }
+
+    // Initialize: load inline history
+    loadInlineHistory();
+    updateStatusIndicator('ready');
+
+    // --- Result Action Buttons ---
+    const downloadBtn = document.getElementById('downloadBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const showPromptHistory = document.getElementById('showPromptHistory');
+    const closeEditPromptModal = document.getElementById('closeEditPromptModal');
+
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+            const videoSrc = els.resultVideo?.src;
+            if (!videoSrc) {
+                toast('没有可下载的视频', 'warning');
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = videoSrc;
+            link.download = `video_${Date.now()}.mp4`;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast('开始下载视频', 'success');
+        });
+    }
+
+    if (shareBtn) {
+        shareBtn.addEventListener('click', async () => {
+            const videoSrc = els.resultVideo?.src;
+            if (!videoSrc) {
+                toast('没有可分享的视频', 'warning');
+                return;
+            }
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'Generated Video',
+                        url: videoSrc
+                    });
+                } catch (e) {
+                    if (e.name !== 'AbortError') {
+                        copyToClipboard(videoSrc);
+                        toast('链接已复制到剪贴板', 'success');
+                    }
+                }
+            } else {
+                copyToClipboard(videoSrc);
+                toast('链接已复制到剪贴板', 'success');
+            }
+        });
+    }
+
+    if (fullscreenBtn) {
+        fullscreenBtn.addEventListener('click', () => {
+            const video = els.resultVideo;
+            if (!video) return;
+            if (video.requestFullscreen) {
+                video.requestFullscreen();
+            } else if (video.webkitRequestFullscreen) {
+                video.webkitRequestFullscreen();
+            } else if (video.mozRequestFullScreen) {
+                video.mozRequestFullScreen();
+            }
+        });
+    }
+
+    if (showPromptHistory) {
+        showPromptHistory.addEventListener('click', () => {
+            // Toggle inline history section visibility
+            if (els.inlineHistorySection) {
+                els.inlineHistorySection.classList.remove('collapsed');
+                els.inlineHistorySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    }
+
+    if (closeEditPromptModal) {
+        closeEditPromptModal.addEventListener('click', () => {
+            const overlay = document.getElementById('editPromptModalOverlay');
+            if (overlay) overlay.classList.add('hidden');
+        });
+    }
 
     els.taskList.addEventListener('click', (e) => {
         const target = e.target instanceof Element ? e.target : null;
@@ -521,55 +1080,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initDropzone() {
-        const zone = els.soraDropzone;
-        const dragClass = 'is-dragover';
+        const dragClass = 'drag-over';
+        const setups = [
+            { zone: els.soraDropzone, input: els.soraImages, source: 'sora' },
+            { zone: els.promptDropzone, input: els.promptImages, source: 'prompt' }
+        ].filter((x) => x.zone && x.input);
 
-        const leaveIfOutside = (e) => {
-            const related = e.relatedTarget;
-            if (related instanceof Node && zone.contains(related)) return;
-            zone.classList.remove(dragClass);
-        };
+        setups.forEach(({ zone, input, source }) => {
+            const leaveIfOutside = (e) => {
+                const related = e.relatedTarget;
+                if (related instanceof Node && zone.contains(related)) return;
+                zone.classList.remove(dragClass);
+            };
 
-        zone.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            zone.classList.add(dragClass);
-        });
-        zone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            zone.classList.add(dragClass);
-        });
-        zone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            leaveIfOutside(e);
-        });
-        zone.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            zone.classList.remove(dragClass);
-
-            const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
-            await addFiles(files);
-        });
-
-        zone.addEventListener('paste', async (e) => {
-            const items = e.clipboardData?.items ? Array.from(e.clipboardData.items) : [];
-            const files = items
-                .filter((it) => it.kind === 'file')
-                .map((it) => it.getAsFile())
-                .filter(Boolean);
-            if (files.length) {
+            zone.addEventListener('dragenter', (e) => {
                 e.preventDefault();
-                await addFiles(files);
-            }
-        });
+                e.stopPropagation();
+                zone.classList.add(dragClass);
+            });
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add(dragClass);
+            });
+            zone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                leaveIfOutside(e);
+            });
+            zone.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove(dragClass);
 
-        zone.addEventListener('click', (e) => {
-            const target = e.target;
-            if (target instanceof HTMLElement && target.closest('button')) return;
-            els.soraImages.click();
+                const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+                await addFiles(files, { source });
+            });
+
+            zone.addEventListener('paste', async (e) => {
+                const items = e.clipboardData?.items ? Array.from(e.clipboardData.items) : [];
+                const files = items
+                    .filter((it) => it.kind === 'file')
+                    .map((it) => it.getAsFile())
+                    .filter(Boolean);
+                if (files.length) {
+                    e.preventDefault();
+                    await addFiles(files, { source });
+                }
+            });
+
+            zone.addEventListener('click', (e) => {
+                const target = e.target;
+                if (target instanceof HTMLElement && target.closest('button')) return;
+                input.click();
+            });
         });
     }
 
@@ -794,7 +1358,164 @@ document.addEventListener('DOMContentLoaded', () => {
         els.soraAddImageSources.disabled = isBusy;
     }
 
-    async function addFiles(files) {
+    function formatBytes(bytes) {
+        const n = Number(bytes || 0);
+        if (!Number.isFinite(n) || n <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let idx = 0;
+        let v = n;
+        while (v >= 1024 && idx < units.length - 1) {
+            v /= 1024;
+            idx += 1;
+        }
+        const digits = idx === 0 ? 0 : idx === 1 ? 1 : 2;
+        return `${v.toFixed(digits)} ${units[idx]}`;
+    }
+
+    function getUploadUi(source) {
+        const key = source === 'prompt' ? 'prompt' : 'sora';
+        return {
+            zone: key === 'prompt' ? els.promptDropzone : els.soraDropzone,
+            pickBtn: key === 'prompt' ? els.promptPickFiles : els.soraPickFiles,
+            clearBtn: key === 'prompt' ? null : els.soraClearImages,
+            textEl: key === 'prompt' ? els.promptUploadText : els.soraUploadText,
+            progressEl: key === 'prompt' ? els.promptUploadProgress : els.soraUploadProgress,
+            metaEl: key === 'prompt' ? els.promptUploadMeta : els.soraUploadMeta
+        };
+    }
+
+    function setUploadFeedback(source, { isProcessing, state, text, progress, meta } = {}) {
+        const ui = getUploadUi(source);
+        if (!ui.zone) return;
+
+        if (typeof isProcessing === 'boolean') ui.zone.classList.toggle('is-processing', isProcessing);
+        if (state === 'success' || state === 'error') {
+            ui.zone.classList.toggle('is-success', state === 'success');
+            ui.zone.classList.toggle('is-error', state === 'error');
+        } else if (state === 'clear') {
+            ui.zone.classList.remove('is-success');
+            ui.zone.classList.remove('is-error');
+        }
+
+        if (ui.textEl && typeof text === 'string') ui.textEl.textContent = text;
+        if (ui.metaEl && typeof meta === 'string') ui.metaEl.textContent = meta;
+        if (ui.progressEl && typeof progress === 'number') {
+            const p = Math.min(100, Math.max(0, progress));
+            ui.progressEl.style.width = `${p}%`;
+        }
+    }
+
+    function setUploadBusy(source, isBusy) {
+        const ui = getUploadUi(source);
+        if (!ui.zone) return;
+        ui.zone.classList.toggle('is-loading', isBusy);
+        if (ui.pickBtn) ui.pickBtn.disabled = isBusy;
+        if (ui.clearBtn) ui.clearBtn.disabled = isBusy || imagesState.items.length === 0;
+        if (source !== 'prompt') {
+            els.soraAddImageSources.disabled = isBusy;
+        }
+    }
+
+    async function compressImageFile(file, opts = {}) {
+        const thresholdBytes = Number(opts.thresholdBytes ?? CONFIG.imageCompressThresholdBytes);
+        const maxDimension = Number(opts.maxDimension ?? CONFIG.imageMaxDimension);
+        if (!file || !Number.isFinite(file.size) || file.size <= thresholdBytes) {
+            return { file, compressed: false, originalBytes: file?.size || 0, outputBytes: file?.size || 0 };
+        }
+
+        const decode = async () => {
+            if (globalThis.createImageBitmap) {
+                return await globalThis.createImageBitmap(file);
+            }
+            const url = URL.createObjectURL(file);
+            try {
+                const img = new Image();
+                img.decoding = 'async';
+                img.src = url;
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = () => reject(new Error('图片解码失败'));
+                });
+                return img;
+            } finally {
+                URL.revokeObjectURL(url);
+            }
+        };
+
+        const bitmap = await decode();
+        try {
+            const srcW = bitmap.width || bitmap.naturalWidth || 0;
+            const srcH = bitmap.height || bitmap.naturalHeight || 0;
+            if (!srcW || !srcH) {
+                return { file, compressed: false, originalBytes: file.size, outputBytes: file.size };
+            }
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { alpha: true });
+            if (!ctx) throw new Error('Canvas 初始化失败');
+
+            let scale = 1;
+            const maxSide = Math.max(srcW, srcH);
+            if (Number.isFinite(maxDimension) && maxDimension > 0 && maxSide > maxDimension) {
+                scale = maxDimension / maxSide;
+            }
+            let outW = Math.max(1, Math.round(srcW * scale));
+            let outH = Math.max(1, Math.round(srcH * scale));
+            canvas.width = outW;
+            canvas.height = outH;
+
+            const attemptEncode = (mime, quality) =>
+                new Promise((resolve) => {
+                    canvas.toBlob(
+                        (blob) => resolve(blob),
+                        mime,
+                        quality
+                    );
+                });
+
+            const draw = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            };
+
+            draw();
+
+            const originalBytes = file.size;
+            let bestBlob = null;
+            let bestBytes = Infinity;
+            let quality = 0.84;
+            let mime = 'image/jpeg';
+
+            for (let i = 0; i < 4; i += 1) {
+                const blob = await attemptEncode(mime, quality);
+                if (!blob) break;
+                const bytes = blob.size || 0;
+                if (bytes > 0 && bytes < bestBytes) {
+                    bestBlob = blob;
+                    bestBytes = bytes;
+                }
+                if (bytes > 0 && bytes <= thresholdBytes) break;
+                quality = Math.max(0.58, quality - 0.12);
+                outW = Math.max(1, Math.round(outW * 0.92));
+                outH = Math.max(1, Math.round(outH * 0.92));
+                canvas.width = outW;
+                canvas.height = outH;
+                draw();
+            }
+
+            if (!bestBlob || bestBytes >= originalBytes) {
+                return { file, compressed: false, originalBytes, outputBytes: originalBytes };
+            }
+
+            const outFile = new File([bestBlob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: mime, lastModified: Date.now() });
+            return { file: outFile, compressed: true, originalBytes, outputBytes: outFile.size };
+        } finally {
+            if (typeof bitmap?.close === 'function') bitmap.close();
+        }
+    }
+
+    async function addFiles(files, opts = {}) {
+        const source = opts.source === 'prompt' ? 'prompt' : 'sora';
         const imageFiles = (files || []).filter((f) => f && String(f.type || '').startsWith('image/'));
         if (imageFiles.length === 0) {
             if (files && files.length) log('未检测到可用的图片文件', 'warning');
@@ -802,11 +1523,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         imagesState.readingCount += imageFiles.length;
-        setImagesBusy(true);
+        setUploadBusy(source, true);
+        setUploadFeedback(source, {
+            isProcessing: true,
+            state: 'clear',
+            text: '处理中…',
+            progress: 0,
+            meta: ''
+        });
         try {
-            const dataUrls = await Promise.all(imageFiles.map(readFileAsDataUrl));
-            dataUrls.forEach((src, idx) => {
+            const total = imageFiles.length;
+            let completed = 0;
+
+            for (let idx = 0; idx < total; idx += 1) {
                 const f = imageFiles[idx];
+                setUploadFeedback(source, {
+                    text: f.size > CONFIG.imageCompressThresholdBytes ? '压缩中…' : '读取中…',
+                    meta: `${idx + 1}/${total} · ${f.name} · ${formatBytes(f.size)}`,
+                    progress: Math.round((completed / total) * 100)
+                });
+
+                let working = f;
+                if (f.size > CONFIG.imageCompressThresholdBytes) {
+                    const before = f.size;
+                    const res = await compressImageFile(f, {
+                        thresholdBytes: CONFIG.imageCompressThresholdBytes,
+                        maxDimension: CONFIG.imageMaxDimension
+                    });
+                    working = res.file;
+                    if (res.compressed) {
+                        setUploadFeedback(source, {
+                            text: '压缩完成，读取中…',
+                            meta: `${idx + 1}/${total} · ${f.name} · ${formatBytes(before)} → ${formatBytes(working.size)}`
+                        });
+                    } else {
+                        setUploadFeedback(source, {
+                            text: '读取中…',
+                            meta: `${idx + 1}/${total} · ${f.name} · ${formatBytes(before)}`
+                        });
+                    }
+                }
+
+                const src = await readFileAsDataUrl(working);
                 const id =
                     globalThis.crypto && globalThis.crypto.randomUUID
                         ? globalThis.crypto.randomUUID()
@@ -815,17 +1573,41 @@ document.addEventListener('DOMContentLoaded', () => {
                     id,
                     kind: 'data',
                     value: src,
-                    name: f?.name || 'image',
-                    size: f?.size || 0
+                    name: working?.name || f?.name || 'image',
+                    size: working?.size || f?.size || 0
                 });
-            });
+                completed += 1;
+                setUploadFeedback(source, {
+                    progress: Math.round((completed / total) * 100)
+                });
+            }
+
             renderImagePreview();
+            setUploadFeedback(source, {
+                state: 'success',
+                text: `已添加 ${imageFiles.length} 张图片`,
+                meta: `${imageFiles.length} 张 · ${imagesState.items.length} 张总计`,
+                progress: 100
+            });
             log(`已添加 ${imageFiles.length} 张图片（已转 Base64）`, 'success');
+            setTimeout(() => {
+                setUploadFeedback(source, { isProcessing: false });
+            }, 900);
+            setTimeout(() => {
+                setUploadFeedback(source, { state: 'clear' });
+            }, 1600);
         } catch (e) {
+            setUploadFeedback(source, {
+                state: 'error',
+                text: '添加失败',
+                meta: String(e?.message || e || ''),
+                progress: 0
+            });
+            setTimeout(() => setUploadFeedback(source, { isProcessing: false }), 1400);
             log(`添加图片失败: ${e.message || e}`, 'error');
         } finally {
             imagesState.readingCount = Math.max(0, imagesState.readingCount - imageFiles.length);
-            setImagesBusy(imagesState.readingCount > 0);
+            setUploadBusy(source, imagesState.readingCount > 0);
         }
     }
 
@@ -1154,7 +1936,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isPro && duration === 25) throw new Error('sora-2 不支持 25 秒，请切换到 sora-2-pro');
             if (duration === 25 && hdRequested) throw new Error('duration=25 时 hd 不生效，请关闭 HD 或选择 10/15 秒');
 
-            const notifyHook = validateNotifyHook(els.notifyHook.value);
+            const notifyHook = els.notifyHook ? validateNotifyHook(els.notifyHook.value) : null;
             const images = imagesState.items.map((x) => x.value).filter(Boolean);
 
             const payload = {
@@ -1519,7 +2301,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTaskSummary();
 
         const total = tasksState.order.length;
-        els.statusContainer.classList.toggle('hidden', total > 0);
+        if (els.statusContainer) {
+            els.statusContainer.classList.toggle('hidden', total > 0);
+        }
 
         // Render only first N tasks (lazy load)
         const visible = tasksState.order.slice(0, tasksState.renderLimit);
@@ -1532,7 +2316,9 @@ document.addEventListener('DOMContentLoaded', () => {
             els.taskList.appendChild(task.dom.root);
         }
 
-        els.taskListFooter.classList.toggle('hidden', total <= tasksState.renderLimit);
+        if (els.taskListFooter) {
+            els.taskListFooter.classList.toggle('hidden', total <= tasksState.renderLimit);
+        }
     }
 
     function addTaskLog(task, message, type = 'info') {
@@ -1563,6 +2349,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateTaskRow(task);
         updateTaskSummary();
+
+        // Sync inline history when a task completes
+        if (next === 'completed' && prev !== 'completed') {
+            setTimeout(() => {
+                if (typeof loadInlineHistory === 'function') loadInlineHistory();
+            }, 1500);
+        }
+
+        // Update result area for the most recent task
+        if (tasksState.order.length > 0) {
+            const latestId = tasksState.order[0];
+            const latestTask = tasksState.byLocalId.get(latestId);
+            if (latestTask && latestTask.localId === task.localId) {
+                if (typeof updateResultArea === 'function') updateResultArea(task);
+            }
+        }
     }
 
     function pruneTasks() {
