@@ -1707,6 +1707,19 @@ body.modal-open {
     flex: 0 0 220px;
 }
 
+.prompt-image-preview {
+    margin-top: 10px;
+}
+
+.prompt-upload .image-preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.prompt-upload .preview-img {
+    height: 76px;
+}
+
 @media (max-width: 768px) {
     .prompt-input-row {
         flex-direction: column;

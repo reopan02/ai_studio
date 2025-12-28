@@ -34,6 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
         promptUploadText: document.getElementById('promptUploadText'),
         promptUploadProgress: document.getElementById('promptUploadProgress'),
         promptUploadMeta: document.getElementById('promptUploadMeta'),
+        promptImagePreviewWrap: document.getElementById('promptImagePreviewWrap'),
+        promptImageCount: document.getElementById('promptImageCount'),
+        promptImagePreview: document.getElementById('promptImagePreview'),
+        promptClearImages: document.getElementById('promptClearImages'),
         notifyHook: document.getElementById('notifyHook'),
         generateBtn: document.getElementById('generateBtn'),
         statusContainer: document.getElementById('statusContainer'),
@@ -377,6 +381,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (els.soraClearImages) {
         els.soraClearImages.addEventListener('click', () => {
+            imagesState.items = [];
+            renderImagePreview();
+            log('已清空参考图片', 'info');
+        });
+    }
+
+    if (els.promptClearImages) {
+        els.promptClearImages.addEventListener('click', () => {
             imagesState.items = [];
             renderImagePreview();
             log('已清空参考图片', 'info');
@@ -1575,6 +1587,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             imagesState.readingCount = Math.max(0, imagesState.readingCount - imageFiles.length);
             setUploadBusy(source, imagesState.readingCount > 0);
+            renderImagePreview();
         }
     }
 
@@ -1604,15 +1617,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderImagePreview() {
         const n = imagesState.items.length;
-        if (els.soraImageCount) {
-            els.soraImageCount.textContent = `${n} 张图片（${n > 0 ? '图生视频' : '文生视频'}）`;
+        const countEl = els.promptImageCount || els.soraImageCount;
+        const clearBtn = els.promptClearImages || els.soraClearImages;
+        const previewWrap = els.promptImagePreviewWrap || null;
+        const previewEl = els.promptImagePreview || els.soraImagePreview;
+
+        if (countEl) {
+            countEl.textContent = `${n} 张图片`;
         }
-        if (els.soraClearImages) {
-            els.soraClearImages.disabled = imagesState.readingCount > 0 || n === 0;
+        if (clearBtn) {
+            clearBtn.disabled = imagesState.readingCount > 0 || n === 0;
+        }
+        if (previewWrap) {
+            previewWrap.classList.toggle('hidden', n === 0);
         }
 
-        if (!els.soraImagePreview) return;
-        els.soraImagePreview.innerHTML = '';
+        if (!previewEl) return;
+        previewEl.innerHTML = '';
         if (n === 0) return;
 
         const fallbackSvg = encodeURIComponent(
@@ -1676,7 +1697,7 @@ document.addEventListener('DOMContentLoaded', () => {
             el.appendChild(img);
             el.appendChild(actions);
             el.appendChild(caption);
-            els.soraImagePreview.appendChild(el);
+            previewEl.appendChild(el);
         }
     }
 
