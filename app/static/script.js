@@ -252,46 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return count;
     }
 
-    function renderImagePreview() {
-        const container = els.soraImagePreview;
-        container.innerHTML = '';
-        els.soraImageCount.textContent = `${imagesState.items.length} 张图片`;
-        
-        imagesState.items.forEach((item, idx) => {
-            const div = document.createElement('div');
-            div.className = 'preview-item';
-            
-            const img = document.createElement('img');
-            img.className = 'preview-img';
-            img.src = item.value;
-            img.onclick = () => {
-                imagesState.editingId = item.id;
-                els.modalValue.value = item.value;
-                els.modalImage.src = item.value;
-                els.imageModal.classList.remove('hidden');
-            };
-            
-            const actions = document.createElement('div');
-            actions.className = 'preview-actions';
-            
-            const delBtn = document.createElement('button');
-            delBtn.className = 'preview-btn danger';
-            delBtn.textContent = '删除';
-            delBtn.onclick = (e) => {
-                e.stopPropagation();
-                imagesState.items.splice(idx, 1);
-                renderImagePreview();
-            };
-            
-            actions.appendChild(delBtn);
-            div.appendChild(img);
-            div.appendChild(actions);
-            container.appendChild(div);
-        });
-        
-        setImagesBusy(false);
-    }
-
     function buildTaskPayload(modelKey, prompt) {
         if (modelKey === 'sora2') {
             const variant = els.soraVariant.value;
@@ -414,6 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
             els.promptImages.value = '';
         });
     }
+
     if (els.soraClearImages) {
         els.soraClearImages.addEventListener('click', () => {
             imagesState.items = [];
@@ -422,22 +383,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    els.soraAddImageSources.addEventListener('click', () => {
-        const raw = els.soraImageSourceInput.value;
-        const added = addSourcesFromText(raw);
-        if (added > 0) {
-            els.soraImageSourceInput.value = '';
-            renderImagePreview();
-            log(`已添加 ${added} 个图片来源`, 'success');
-        }
-    });
+    if (els.soraAddImageSources && els.soraImageSourceInput) {
+        els.soraAddImageSources.addEventListener('click', () => {
+            const raw = els.soraImageSourceInput.value;
+            const added = addSourcesFromText(raw);
+            if (added > 0) {
+                els.soraImageSourceInput.value = '';
+                renderImagePreview();
+                log(`已添加 ${added} 个图片来源`, 'success');
+            }
+        });
 
-    els.soraImageSourceInput.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            els.soraAddImageSources.click();
-        }
-    });
+        els.soraImageSourceInput.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                els.soraAddImageSources.click();
+            }
+        });
+    }
 
     initDropzone();
     initModal();
@@ -484,8 +447,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!content) return;
 
         // Restore collapsed state from localStorage
+        // API Configuration (configContent) is collapsed by default
         const savedState = localStorage.getItem(`collapsed_${targetId}`);
-        if (savedState === 'true') {
+        const defaultCollapsed = targetId === 'configContent';
+        const shouldCollapse = savedState === null ? defaultCollapsed : savedState === 'true';
+
+        if (shouldCollapse) {
             header.classList.add('collapsed');
             content.classList.add('collapsed');
         }
@@ -1352,10 +1319,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setImagesBusy(isBusy) {
-        els.soraDropzone.classList.toggle('is-loading', isBusy);
-        els.soraPickFiles.disabled = isBusy;
-        els.soraClearImages.disabled = isBusy || imagesState.items.length === 0;
-        els.soraAddImageSources.disabled = isBusy;
+        if (els.soraDropzone) els.soraDropzone.classList.toggle('is-loading', isBusy);
+        if (els.soraPickFiles) els.soraPickFiles.disabled = isBusy;
+        if (els.soraClearImages) els.soraClearImages.disabled = isBusy || imagesState.items.length === 0;
+        if (els.soraAddImageSources) els.soraAddImageSources.disabled = isBusy;
     }
 
     function formatBytes(bytes) {
@@ -1637,9 +1604,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderImagePreview() {
         const n = imagesState.items.length;
-        els.soraImageCount.textContent = `${n} 张图片（${n > 0 ? '图生视频' : '文生视频'}）`;
-        els.soraClearImages.disabled = imagesState.readingCount > 0 || n === 0;
+        if (els.soraImageCount) {
+            els.soraImageCount.textContent = `${n} 张图片（${n > 0 ? '图生视频' : '文生视频'}）`;
+        }
+        if (els.soraClearImages) {
+            els.soraClearImages.disabled = imagesState.readingCount > 0 || n === 0;
+        }
 
+        if (!els.soraImagePreview) return;
         els.soraImagePreview.innerHTML = '';
         if (n === 0) return;
 
@@ -1936,7 +1908,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isPro && duration === 25) throw new Error('sora-2 不支持 25 秒，请切换到 sora-2-pro');
             if (duration === 25 && hdRequested) throw new Error('duration=25 时 hd 不生效，请关闭 HD 或选择 10/15 秒');
 
-            const notifyHook = els.notifyHook ? validateNotifyHook(els.notifyHook.value) : null;
+            const notifyHook = validateNotifyHook(els.notifyHook.value);
             const images = imagesState.items.map((x) => x.value).filter(Boolean);
 
             const payload = {

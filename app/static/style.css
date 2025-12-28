@@ -1199,6 +1199,31 @@ body.modal-open {
     border-bottom: 1px solid var(--border-color);
 }
 
+/* Config Section - Compact Style */
+.sidebar-section.config-section {
+    padding: 0;
+}
+
+.config-section .section-title {
+    padding: 16px 20px;
+    margin-bottom: 0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.config-section .section-title:hover {
+    background-color: var(--bg-color);
+}
+
+.config-content-inner {
+    padding: 0 20px 20px 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.collapsible-content.collapsed .config-content-inner {
+    padding: 0 20px; /* Collapse padding when hidden */
+}
+
 .section-title {
     font-size: 12px;
     font-weight: 600;

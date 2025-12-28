@@ -1479,10 +1479,18 @@ function filterModels() {
 // ==========================================
 function initCollapsibles() {
     document.querySelectorAll('.collapsible-header').forEach(header => {
+        const targetId = header.dataset.target;
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (!target) return;
+
+        if (targetId === 'configContent') {
+            header.classList.add('collapsed');
+            target.classList.add('collapsed');
+        }
+
         header.addEventListener('click', () => {
-            const target = document.getElementById(header.dataset.target);
-            header.classList.toggle('collapsed');
-            target.classList.toggle('collapsed');
+            const isCollapsed = header.classList.toggle('collapsed');
+            target.classList.toggle('collapsed', isCollapsed);
         });
     });
 }
