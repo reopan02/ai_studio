@@ -77,6 +77,57 @@ class UserPublic(BaseModel):
     last_login_at: Optional[datetime] = None
 
 
+class AdminLoginAttempt(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    user_id: Optional[str] = None
+    username_or_email: str
+    success: bool
+    failure_reason: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    created_at: datetime
+
+
+class AdminUserSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    username: str
+    email: EmailStr
+    is_active: bool
+    is_admin: bool
+    storage_quota_bytes: int
+    storage_used_bytes: int
+    created_at: datetime
+    last_login_at: Optional[datetime] = None
+
+
+class AdminUserDetail(AdminUserSummary):
+    total_video_count: int
+    total_image_count: int
+    active_session_count: int
+    recent_login_attempts: List[AdminLoginAttempt]
+
+
+class AdminUserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
+    storage_quota_bytes: Optional[int] = Field(default=None, ge=0)
+
+
+class AdminSystemStats(BaseModel):
+    total_user_count: int
+    active_user_count: int
+    total_storage_used_bytes: int
+    total_storage_quota_bytes: int
+    total_video_count: int
+    total_image_count: int
+    active_session_count: int
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

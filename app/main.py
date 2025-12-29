@@ -100,6 +100,16 @@ async def dashboard_redirect():
     from starlette.responses import RedirectResponse
     return RedirectResponse(url="/video")
 
+
+@app.get("/admin")
+async def admin_page(user: User = Depends(get_current_user)):
+    if not user.is_admin:
+        from starlette.responses import RedirectResponse
+
+        return RedirectResponse(url="/?error=Admin%20access%20required", status_code=303)
+    return FileResponse("app/static/admin.html")
+
+
 @app.get("/image")
 async def image_page(user: User = Depends(get_current_user)):
     return FileResponse("images_editing/index.html")

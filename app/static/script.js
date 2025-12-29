@@ -417,13 +417,13 @@ document.addEventListener('DOMContentLoaded', () => {
     initDropzone();
     initModal();
 
-    els.generateBtn.addEventListener('click', handleSubmit);
-    els.clearCompletedBtn.addEventListener('click', () => {
+    els.generateBtn?.addEventListener('click', handleSubmit);
+    els.clearCompletedBtn?.addEventListener('click', () => {
         clearCompletedTasks();
         renderTaskList();
         toast('已清理已完成任务', 'info');
     });
-    els.loadMoreTasksBtn.addEventListener('click', () => {
+    els.loadMoreTasksBtn?.addEventListener('click', () => {
         tasksState.renderLimit += CONFIG.renderPageSize;
         renderTaskList();
     });
@@ -1495,7 +1495,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function addFiles(files, opts = {}) {
         const source = opts.source === 'prompt' ? 'prompt' : 'sora';
-        const imageFiles = (files || []).filter((f) => f && String(f.type || '').startsWith('image/'));
+        const imageFiles = (files || []).filter((f) => {
+            if (!f) return false;
+            const t = String(f.type || '');
+            if (t.startsWith('image/')) return true;
+            const name = String(f.name || '');
+            return /\.(png|jpe?g|webp|gif|bmp|svg|ico|tiff?)$/i.test(name);
+        });
         if (imageFiles.length === 0) {
             if (files && files.length) log('未检测到可用的图片文件', 'warning');
             return;
@@ -1929,7 +1935,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isPro && duration === 25) throw new Error('sora-2 不支持 25 秒，请切换到 sora-2-pro');
             if (duration === 25 && hdRequested) throw new Error('duration=25 时 hd 不生效，请关闭 HD 或选择 10/15 秒');
 
-            const notifyHook = validateNotifyHook(els.notifyHook.value);
+            const notifyHook = validateNotifyHook(els.notifyHook ? els.notifyHook.value : '');
             const images = imagesState.items.map((x) => x.value).filter(Boolean);
 
             const payload = {
@@ -2773,6 +2779,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (now - tasksState.lastSubmitAt < CONFIG.submitDebounceMs) return;
         tasksState.lastSubmitAt = now;
 
+        const requiredEls = [
+            ['apiKey', els.apiKey],
+            ['baseUrl', els.baseUrl],
+            ['promptInput', els.promptInput],
+            ['modelSelect', els.modelSelect],
+            ['batchCount', els.batchCount],
+            ['taskNameInput', els.taskNameInput]
+        ];
+        for (const [name, el] of requiredEls) {
+            if (!el) {
+                toast(`页面缺少必要表单字段：${name}`, 'error');
+                return;
+            }
+        }
+
         const apiKey = normalizeApiKey(els.apiKey.value);
         if (!apiKey) {
             toast('请先输入 API Key', 'error');
@@ -2812,11 +2833,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Flush pending image sources into preview list (Sora only)
         if (modelKey === 'sora2') {
-            const pendingSources = String(els.soraImageSourceInput.value || '').trim();
+            const pendingSources = els.soraImageSourceInput ? String(els.soraImageSourceInput.value || '').trim() : '';
             if (pendingSources) {
                 const added = addSourcesFromText(pendingSources);
                 if (added > 0) {
-                    els.soraImageSourceInput.value = '';
+                    if (els.soraImageSourceInput) els.soraImageSourceInput.value = '';
                     renderImagePreview();
                 }
             }

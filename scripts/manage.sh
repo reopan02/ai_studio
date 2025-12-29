@@ -3,7 +3,7 @@
 # 配置
 APP_NAME="AI Video Generator API"
 MODULE="app.main:app"
-HOST="0.0.0.0"
+HOST="127.0.0.1"
 PORT=8000
 LOG_FILE="server.log"
 PID_FILE="server.pid"
