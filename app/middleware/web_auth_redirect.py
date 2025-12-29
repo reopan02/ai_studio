@@ -23,7 +23,7 @@ class WebAuthRedirectMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
-        if path.startswith("/api/") or path in {self._login_path, "/health", "/favicon.ico"}:
+        if path.startswith("/api/") or path in {self._login_path, "/health", "/favicon.ico", "/dashboard"}:
             return await call_next(request)
 
         if path.startswith("/static/"):

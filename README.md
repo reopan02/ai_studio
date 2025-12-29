@@ -22,7 +22,7 @@
 - 登录页：`GET /login`
 - 主页面：`GET /`（登录后可访问，支持生成并加密保存记录）
 - 存储库：`GET /storage`（查看/删除已保存的视频记录）
-- 旧版 Dashboard：`GET /dashboard`（同样需要登录）
+- 视频生成：`GET /video`（同样需要登录）
 - 站点图标：`GET /favicon.ico`（文件位于 `app/static/favicon.ico`）
 
 ### 静态资源缓存（304 说明）

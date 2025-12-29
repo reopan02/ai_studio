@@ -90,9 +90,15 @@ async def storage_page():
     return FileResponse("app/static/storage.html")
 
 
+@app.get("/video")
+async def video_page():
+    return FileResponse("app/static/video.html")
+
+
 @app.get("/dashboard")
-async def dashboard_page():
-    return FileResponse("app/static/index.html")
+async def dashboard_redirect():
+    from starlette.responses import RedirectResponse
+    return RedirectResponse(url="/video")
 
 @app.get("/image")
 async def image_page(user: User = Depends(get_current_user)):

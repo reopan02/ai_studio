@@ -45,7 +45,7 @@
                 </svg>
                 <h3>暂无视频记录</h3>
                 <p style="margin-top: 8px;">开始生成您的第一个视频吧</p>
-                <a href="/dashboard" style="color: #6366f1; text-decoration: none; margin-top: 12px; display: inline-block; font-weight: 500;">去生成视频 →</a>
+                <a href="/video" style="color: #6366f1; text-decoration: none; margin-top: 12px; display: inline-block; font-weight: 500;">去生成视频 →</a>
             </div>
         `;
     }

@@ -45,6 +45,10 @@ header {
     margin-top: 20px;
 }
 
+.video-page header {
+    margin: 0 !important;
+}
+
 h1 {
     font-size: 32px;
     font-weight: 600;
@@ -247,8 +251,8 @@ input:focus, select:focus, textarea:focus {
     cursor: not-allowed;
 }
 
-/* Dashboard Grid */
-.dashboard-grid {
+/* Video Page Grid */
+.video-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;

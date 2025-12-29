@@ -2539,7 +2539,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateTaskRow(t);
                 addTaskLog(t, `保存失败: ${msg}`, 'warning');
                 toast(msg, 'warning');
-                window.location.href = '/login?next=/dashboard';
+                window.location.href = '/login?next=/video';
                 return;
             }
 
