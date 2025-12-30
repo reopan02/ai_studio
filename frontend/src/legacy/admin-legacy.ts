@@ -1,3 +1,4 @@
+// @ts-nocheck
 (function () {
     function getCookie(name) {
         const value = `; ${document.cookie || ''}`;

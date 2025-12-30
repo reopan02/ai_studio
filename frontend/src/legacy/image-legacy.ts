@@ -1,3 +1,4 @@
+// @ts-nocheck
 const STORAGE_KEYS = {
     apiKey: 'video_api_key',
     baseUrl: 'video_base_url'
@@ -750,18 +751,6 @@ function canvasZoomReset() {
 	        // API Integration for Image Repository
 	        // ==========================================
 
-	        function getCookie(name) {
-	            const value = `; ${document.cookie}`;
-	            const parts = value.split(`; ${name}=`);
-	            if (parts.length === 2) return parts.pop().split(';').shift();
-	            return null;
-	        }
-
-	        function csrfHeaders() {
-	            const token = getCookie('csrf_token');
-	            return token ? { 'X-CSRF-Token': token } : {};
-	        }
-
 	        async function checkAuthentication() {
 	            try {
 	                const res = await fetch('/api/v1/auth/me', { credentials: 'include' });
@@ -896,20 +885,6 @@ function canvasZoomReset() {
 	            setTimeout(() => {
 	                elements.imagePreviewImg.src = '';
 	            }, 300);
-	        }
-
-	        function formatTime(date) {
-	            const now = new Date();
-	            const diff = now - date;
-	            const seconds = Math.floor(diff / 1000);
-	            const minutes = Math.floor(seconds / 60);
-	            const hours = Math.floor(minutes / 60);
-	            const days = Math.floor(hours / 24);
-
-	            if (days > 0) return `${days}天前`;
-	            if (hours > 0) return `${hours}小时前`;
-	            if (minutes > 0) return `${minutes}分钟前`;
-	            return '刚刚';
 	        }
 
 	        // ==========================================
@@ -1729,5 +1704,10 @@ function init() {
 }
 
 // Start the application
-document.addEventListener('DOMContentLoaded', init);
-    
+if (document.readyState !== 'loading') {
+    init();
+} else {
+    document.addEventListener('DOMContentLoaded', init);
+}
+
+export {};

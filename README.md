@@ -1,6 +1,17 @@
 # Video API Dashboard
 
-本项目包含一个静态前端页面（`app/static`）用于创建视频生成任务并轮询状态。
+本项目包含一个 **Vue 3 + TypeScript** 前端（源码位于 `frontend/`），通过 **Vite 多页面（MPA）** 构建输出到 `app/static/`，由 FastAPI 作为静态资源对外提供。
+
+## 前端开发/构建
+
+```bash
+cd frontend
+npm install
+npm run typecheck
+npm run build
+```
+
+构建完成后，服务端会直接读取 `app/static/*.html`（以及 `app/static/assets/*`）对外提供页面与资源。
 
 ## 后端（FastAPI）+ PostgreSQL（新增）
 

@@ -1,0 +1,361 @@
+<template>
+  <div class="admin-page">
+      <div class="admin-container">
+          <header class="admin-header">
+              <div>
+                  <h1>Admin Dashboard</h1>
+                  <div class="meta-text">User management and system stats</div>
+              </div>
+              <div class="header-actions">
+                  <a href="/" class="btn btn-secondary" style="text-decoration:none;">Home</a>
+                  <a href="/video" class="btn btn-secondary" style="text-decoration:none;">Video</a>
+                  <a href="/storage" class="btn btn-secondary" style="text-decoration:none;">Storage</a>
+              </div>
+          </header>
+  
+          <section id="errorBanner" class="card admin-banner" style="display:none;"></section>
+  
+          <section class="stats-grid" id="statsGrid">
+              <div class="card stat-card">
+                  <div class="stat-label">Total Users</div>
+                  <div class="stat-value" id="statTotalUsers">-</div>
+              </div>
+              <div class="card stat-card">
+                  <div class="stat-label">Active Users</div>
+                  <div class="stat-value" id="statActiveUsers">-</div>
+              </div>
+              <div class="card stat-card">
+                  <div class="stat-label">Storage Used</div>
+                  <div class="stat-value" id="statStorageUsed">-</div>
+              </div>
+              <div class="card stat-card">
+                  <div class="stat-label">Storage Quota</div>
+                  <div class="stat-value" id="statStorageQuota">-</div>
+              </div>
+              <div class="card stat-card">
+                  <div class="stat-label">Videos</div>
+                  <div class="stat-value" id="statVideos">-</div>
+              </div>
+              <div class="card stat-card">
+                  <div class="stat-label">Images</div>
+                  <div class="stat-value" id="statImages">-</div>
+              </div>
+              <div class="card stat-card">
+                  <div class="stat-label">Active Sessions</div>
+                  <div class="stat-value" id="statSessions">-</div>
+              </div>
+          </section>
+  
+          <section class="card">
+              <div class="toolbar">
+                  <div class="toolbar-left">
+                      <input id="searchInput" type="text" placeholder="Search username or email…" />
+                      <select id="filterActive" aria-label="Filter active status">
+                          <option value="">All statuses</option>
+                          <option value="true">Active</option>
+                          <option value="false">Inactive</option>
+                      </select>
+                      <select id="filterAdmin" aria-label="Filter admin role">
+                          <option value="">All roles</option>
+                          <option value="true">Admins</option>
+                          <option value="false">Non-admin</option>
+                      </select>
+                  </div>
+                  <div class="toolbar-right">
+                      <button class="btn btn-secondary" id="refreshBtn" type="button">Refresh</button>
+                  </div>
+              </div>
+  
+              <div class="table-wrap">
+                  <table class="admin-table" aria-label="User table">
+                      <thead>
+                          <tr>
+                              <th>Username</th>
+                              <th>Email</th>
+                              <th>Status</th>
+                              <th>Role</th>
+                              <th>Storage</th>
+                              <th>Created</th>
+                              <th>Last Login</th>
+                              <th style="width: 200px;">Actions</th>
+                          </tr>
+                      </thead>
+                      <tbody id="userTbody">
+                          <tr>
+                              <td colspan="8" class="meta-text">Loading…</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+  
+              <div class="pagination">
+                  <button class="btn btn-secondary btn-sm" id="prevPageBtn" type="button">Prev</button>
+                  <span class="meta-text" id="pageLabel">Page 1</span>
+                  <button class="btn btn-secondary btn-sm" id="nextPageBtn" type="button">Next</button>
+              </div>
+          </section>
+      </div>
+  
+      <div id="userModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+          <div class="modal-backdrop" id="userModalBackdrop"></div>
+          <div class="modal-content admin-modal" role="document">
+              <div class="modal-header">
+                  <h3 id="userModalTitle">User</h3>
+                  <button id="userModalClose" class="btn btn-ghost btn-icon" type="button" aria-label="Close">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                  </button>
+              </div>
+              <div class="modal-body">
+                  <div class="form-grid">
+                      <div class="form-group">
+                          <label for="editEmail">Email</label>
+                          <input id="editEmail" type="email" autocomplete="off" />
+                      </div>
+                      <div class="form-group">
+                          <label for="editQuota">Storage quota (bytes)</label>
+                          <input id="editQuota" type="number" min="0" step="1" />
+                          <div class="form-hint">Bytes (e.g. 1073741824 for 1 GiB)</div>
+                      </div>
+                  </div>
+                  <div class="checkbox-row">
+                      <label class="checkbox-item"><input type="checkbox" id="editActive" /> Active</label>
+                      <label class="checkbox-item"><input type="checkbox" id="editAdmin" /> Admin</label>
+                  </div>
+  
+                  <div class="admin-kv" aria-label="User stats">
+                      <div class="card">
+                          <div class="kv-label">Storage</div>
+                          <div class="kv-value" id="detailStorage">-</div>
+                      </div>
+                      <div class="card">
+                          <div class="kv-label">Videos</div>
+                          <div class="kv-value" id="detailVideos">-</div>
+                      </div>
+                      <div class="card">
+                          <div class="kv-label">Images</div>
+                          <div class="kv-value" id="detailImages">-</div>
+                      </div>
+                      <div class="card">
+                          <div class="kv-label">Active Sessions</div>
+                          <div class="kv-value" id="detailSessions">-</div>
+                      </div>
+                  </div>
+  
+                  <div class="login-attempts">
+                      <h2 style="margin-top: 8px;">Recent login attempts</h2>
+                      <div class="table-wrap" style="min-width: 0;">
+                          <table aria-label="Login attempts table">
+                              <thead>
+                                  <tr>
+                                      <th>Time</th>
+                                      <th>Result</th>
+                                      <th>Reason</th>
+                                      <th>IP</th>
+                                  </tr>
+                              </thead>
+                              <tbody id="loginAttemptTbody">
+                                  <tr><td colspan="4" class="meta-text">-</td></tr>
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              </div>
+              <div class="modal-actions">
+                  <button id="deleteUserBtn" type="button" class="btn btn-secondary">Delete</button>
+                  <div style="flex: 1;"></div>
+                  <button id="cancelUserBtn" type="button" class="btn btn-secondary">Cancel</button>
+                  <button id="saveUserBtn" type="button" class="btn btn-primary">Save</button>
+              </div>
+          </div>
+      </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+// Legacy behavior initializes via `frontend/src/pages/admin/main.ts`.
+</script>
+
+<style>
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin: 8px 0 20px;
+        }
+
+        .admin-header h1 {
+            text-align: left;
+            margin: 0;
+        }
+
+        .admin-header .header-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .admin-banner {
+            border: 1px solid rgba(255, 59, 48, 0.25);
+            background: rgba(255, 59, 48, 0.06);
+            color: #b42318;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            padding: 16px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .stat-value {
+            margin-top: 8px;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .toolbar-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar input[type="text"] {
+            width: 320px;
+            max-width: 100%;
+        }
+
+        .table-wrap {
+            overflow: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(209, 209, 214, 0.65);
+        }
+
+        table.admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 980px;
+            background: #fff;
+        }
+
+        .admin-table th,
+        .admin-table td {
+            text-align: left;
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(209, 209, 214, 0.55);
+            vertical-align: middle;
+            font-size: 13px;
+        }
+
+        .admin-table th {
+            position: sticky;
+            top: 0;
+            background: rgba(245, 245, 247, 0.95);
+            backdrop-filter: blur(6px);
+            font-weight: 700;
+            z-index: 1;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            gap: 6px;
+        }
+
+        .pill-green { background: rgba(52, 199, 89, 0.16); color: #0f7a2a; }
+        .pill-red { background: rgba(255, 59, 48, 0.12); color: #b42318; }
+        .pill-blue { background: rgba(0, 113, 227, 0.12); color: #004e9a; }
+        .pill-gray { background: rgba(134, 134, 139, 0.12); color: #4b5563; }
+
+        .row-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .modal-content.admin-modal {
+            max-width: 860px;
+        }
+
+        .admin-kv {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin: 12px 0 6px;
+        }
+
+        .admin-kv .card {
+            padding: 14px;
+            margin: 0;
+        }
+
+        .admin-kv .kv-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .admin-kv .kv-value {
+            margin-top: 6px;
+            font-weight: 700;
+        }
+
+        .login-attempts {
+            margin-top: 14px;
+        }
+
+        .login-attempts table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .login-attempts th,
+        .login-attempts td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(209, 209, 214, 0.55);
+            font-size: 12px;
+            text-align: left;
+        }
+</style>

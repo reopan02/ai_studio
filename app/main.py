@@ -72,7 +72,6 @@ app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 
 # Mount static files
 app.mount("/static", CacheControlStaticFiles(directory="app/static"), name="static")
-app.mount("/images_editing", CacheControlStaticFiles(directory="images_editing"), name="images_editing")
 
 
 @app.get("/")
@@ -112,7 +111,7 @@ async def admin_page(user: User = Depends(get_current_user)):
 
 @app.get("/image")
 async def image_page(user: User = Depends(get_current_user)):
-    return FileResponse("images_editing/index.html")
+    return FileResponse("app/static/image.html")
 
 
 @app.get("/health")
