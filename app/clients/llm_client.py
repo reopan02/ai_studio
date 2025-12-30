@@ -1,6 +1,5 @@
 import os
-import base64
-from typing import Optional
+from typing import Optional, Any, Dict, Tuple
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -35,18 +34,40 @@ class ProductRecognitionError(Exception):
     pass
 
 
+_PLACEHOLDER_API_KEYS = {
+    "your-provider-api-key",
+    "your_api_key_here",
+    "your-api-key",
+    "your-provider-key",
+    "changeme",
+    "replace-me",
+}
+
+
+def _safe_dump_raw_response(raw_response: Any) -> Dict[str, Any]:
+    try:
+        if hasattr(raw_response, "model_dump"):
+            return raw_response.model_dump()  # type: ignore[no-any-return]
+        if hasattr(raw_response, "dict"):
+            return raw_response.dict()  # type: ignore[no-any-return]
+    except Exception:
+        pass
+    return {"raw_response": str(raw_response)}
+
+
 def create_llm_client() -> Optional[object]:
     """Create StructLLM client instance"""
     if not STRUCTLLM_AVAILABLE:
         return None
 
     config = LLMConfig()
-    if not config.api_key:
+    api_key = (config.api_key or "").strip()
+    if not api_key or api_key in _PLACEHOLDER_API_KEYS:
         return None
 
     try:
         client = StructLLM(
-            api_key=config.api_key,
+            api_key=api_key,
             api_base=config.get_base_url()
         )
         return client
@@ -60,15 +81,19 @@ def create_llm_client() -> Optional[object]:
     wait=wait_exponential(multiplier=1, min=1, max=10),
     reraise=True
 )
-async def recognize_product(image_base64: str) -> ProductRecognitionResult:
+async def recognize_product_with_metadata(
+    image_base64: str,
+    mime_type: str = "image/jpeg",
+) -> Tuple[ProductRecognitionResult, Dict[str, Any]]:
     """
     Recognize product attributes from an image using LLM vision capabilities.
 
     Args:
         image_base64: Base64-encoded product image
+        mime_type: MIME type for the image data URI
 
     Returns:
-        ProductRecognitionResult with extracted attributes and confidence score
+        Tuple of (ProductRecognitionResult, metadata)
 
     Raises:
         ProductRecognitionError: If recognition fails after retries
@@ -112,7 +137,7 @@ async def recognize_product(image_base64: str) -> ProductRecognitionResult:
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
+                                "url": f"data:{mime_type};base64,{image_base64}"
                             }
                         }
                     ]
@@ -132,10 +157,21 @@ async def recognize_product(image_base64: str) -> ProductRecognitionResult:
         elif result.confidence > 1.0:
             result.confidence = 1.0
 
-        return result
+        metadata: Dict[str, Any] = {"raw_response": _safe_dump_raw_response(response.raw_response)}
+        try:
+            metadata["raw_content"] = response.raw_response.choices[0].message.content
+        except Exception:
+            pass
+
+        return result, metadata
 
     except Exception as e:
         raise ProductRecognitionError(f"Product recognition failed: {str(e)}")
+
+
+async def recognize_product(image_base64: str) -> ProductRecognitionResult:
+    result, _ = await recognize_product_with_metadata(image_base64)
+    return result
 
 
 def create_manual_recognition_result(

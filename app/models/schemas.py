@@ -299,6 +299,7 @@ class ProductUpdate(BaseModel):
 class ProductSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    user_id: str
     id: str
     name: str
     dimensions: Optional[str] = None

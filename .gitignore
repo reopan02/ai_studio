@@ -16,6 +16,9 @@ env/
 backups/
 server.pid
 
+# Uploads
+app/static/uploads/
+
 # Windows reserved names
 nul
 frontend/node_modules/

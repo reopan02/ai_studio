@@ -1,15 +1,14 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import select, func, delete, update
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.database import Product, User
 from app.models.schemas import (
-    ProductCreate,
     ProductUpdate,
     ProductSummary,
     ProductDetail,
@@ -18,14 +17,13 @@ from app.models.schemas import (
 from app.core.product_storage import (
     save_product_image,
     delete_product_image,
-    compress_image_if_needed,
     get_image_format,
+    prepare_image_for_llm,
     image_to_base64,
-    base64_to_image,
     ProductStorageError,
 )
 from app.clients.llm_client import (
-    recognize_product,
+    recognize_product_with_metadata,
     create_manual_recognition_result,
     ProductRecognitionError,
 )
@@ -52,6 +50,7 @@ async def create_product(
     - Enforces storage quota
     """
     import json
+    from pathlib import Path
 
     # Read image data
     image_data = await image.read()
@@ -63,31 +62,57 @@ async def create_product(
             detail="Empty image file"
         )
 
-    # Check storage quota
-    if current_user.storage_used_bytes + len(image_data) > current_user.storage_quota_bytes:
-        available = current_user.storage_quota_bytes - current_user.storage_used_bytes
+    if name is not None and len(name) > 200:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="name must be <= 200 characters")
+    if dimensions is not None and len(dimensions) > 100:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "message": "Storage quota exceeded",
-                "quota_bytes": current_user.storage_quota_bytes,
-                "used_bytes": current_user.storage_used_bytes,
-                "available_bytes": available,
-                "requested_bytes": len(image_data),
-            }
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="dimensions must be <= 100 characters"
         )
+
+    def parse_string_list(value: Optional[str], field_name: str) -> Optional[List[str]]:
+        if value is None:
+            return None
+        try:
+            parsed: Any = json.loads(value)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"{field_name} must be a JSON array of strings",
+            )
+        if not isinstance(parsed, list) or any(not isinstance(item, str) for item in parsed):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"{field_name} must be a JSON array of strings",
+            )
+        return parsed
+
+    manual_features = parse_string_list(features, "features")
+    manual_characteristics = parse_string_list(characteristics, "characteristics")
 
     # Detect image format
     try:
-        img_format = get_image_format(image_data)
+        detected_format = get_image_format(image_data)
     except ProductStorageError:
-        img_format = "jpg"
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid or unsupported image file",
+        )
 
-    # Compress image if needed for AI recognition
-    compressed_data, was_compressed = compress_image_if_needed(image_data)
+    if detected_format not in {"jpeg", "png"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Only JPEG and PNG images are supported",
+        )
 
-    # Generate product ID
-    product_id = str(uuid4())
+    filename_ext = Path(image.filename or "").suffix.lower().lstrip(".")
+    if detected_format == "png":
+        img_format = "png"
+    else:
+        img_format = filename_ext if filename_ext in {"jpg", "jpeg"} else "jpeg"
+
+    # Prepare image for AI recognition (convert/compress for LLM input only)
+    llm_image_data, preprocessing = prepare_image_for_llm(image_data)
+    llm_mime_type = "image/jpeg" if preprocessing["processed_format"] in {"jpg", "jpeg"} else "image/png"
 
     # AI recognition (with fallback to manual entry)
     recognition_result = None
@@ -96,10 +121,10 @@ async def create_product(
 
     try:
         # Convert to base64 for AI recognition
-        image_base64 = image_to_base64(compressed_data)
+        image_base64 = image_to_base64(llm_image_data)
 
         # Call AI recognition
-        recognition_result = await recognize_product(image_base64)
+        recognition_result, llm_metadata = await recognize_product_with_metadata(image_base64, mime_type=llm_mime_type)
 
         ai_confidence = recognition_result.confidence
         recognition_metadata = {
@@ -112,7 +137,8 @@ async def create_product(
                 "features": recognition_result.features,
                 "characteristics": recognition_result.characteristics,
             },
-            "was_compressed": was_compressed,
+            "preprocessing": preprocessing,
+            "llm": llm_metadata,
         }
 
     except (ProductRecognitionError, Exception) as e:
@@ -120,19 +146,68 @@ async def create_product(
         recognition_result = create_manual_recognition_result(
             name=name or "未命名产品",
             dimensions=dimensions,
-            features=json.loads(features) if features else [],
-            characteristics=json.loads(characteristics) if characteristics else [],
+            features=manual_features or [],
+            characteristics=manual_characteristics or [],
         )
         recognition_metadata = {
             "error": str(e),
-            "fallback": "manual_entry"
+            "fallback": "manual_entry",
+            "preprocessing": preprocessing,
         }
 
     # Override AI results with manual input if provided
     final_name = name if name else recognition_result.name
     final_dimensions = dimensions if dimensions else recognition_result.dimensions
-    final_features = json.loads(features) if features else recognition_result.features
-    final_characteristics = json.loads(characteristics) if characteristics else recognition_result.characteristics
+    final_features = manual_features if manual_features is not None else recognition_result.features
+    final_characteristics = manual_characteristics if manual_characteristics is not None else recognition_result.characteristics
+
+    requested_size = len(image_data)
+
+    # Fast fail quota check (authoritative check is the conditional UPDATE below)
+    if current_user.storage_used_bytes + requested_size > current_user.storage_quota_bytes:
+        available = current_user.storage_quota_bytes - current_user.storage_used_bytes
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": "Storage quota exceeded",
+                "quota_bytes": current_user.storage_quota_bytes,
+                "used_bytes": current_user.storage_used_bytes,
+                "available_bytes": available,
+                "requested_bytes": requested_size,
+            },
+        )
+
+    # Generate product ID
+    product_id = str(uuid4())
+
+    # Reserve quota atomically (prevents concurrent uploads exceeding quota)
+    reserve_stmt = (
+        update(User)
+        .where(User.id == current_user.id)
+        .where(User.storage_used_bytes + requested_size <= User.storage_quota_bytes)
+        .values(storage_used_bytes=User.storage_used_bytes + requested_size)
+    )
+    reserve_result = await db.execute(reserve_stmt)
+    if (reserve_result.rowcount or 0) != 1:
+        await db.rollback()
+        fresh_user = await db.get(User, current_user.id)
+        if fresh_user:
+            quota = fresh_user.storage_quota_bytes
+            used = fresh_user.storage_used_bytes
+        else:
+            quota = current_user.storage_quota_bytes
+            used = current_user.storage_used_bytes
+        available = max(0, quota - used)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": "Storage quota exceeded",
+                "quota_bytes": quota,
+                "used_bytes": used,
+                "available_bytes": available,
+                "requested_bytes": requested_size,
+            },
+        )
 
     # Save image to file system
     try:
@@ -143,10 +218,14 @@ async def create_product(
             original_format=img_format
         )
     except ProductStorageError as e:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save product image: {str(e)}"
         )
+    except Exception:
+        await db.rollback()
+        raise
 
     # Create product record
     product = Product(
@@ -164,15 +243,16 @@ async def create_product(
 
     db.add(product)
 
-    # Update user storage quota
-    stmt = (
-        update(User)
-        .where(User.id == current_user.id)
-        .values(storage_used_bytes=User.storage_used_bytes + image_size)
-    )
-    await db.execute(stmt)
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        try:
+            delete_product_image(image_url)
+        except Exception:
+            pass
+        raise
 
-    await db.commit()
     await db.refresh(product)
 
     return product
@@ -197,7 +277,9 @@ async def list_products(
     limit = min(limit, 100)
 
     # Build query
-    query = select(Product).where(Product.user_id == current_user.id)
+    query = select(Product)
+    if not current_user.is_admin:
+        query = query.where(Product.user_id == current_user.id)
 
     # Apply name filter if provided
     if name:
@@ -235,10 +317,9 @@ async def get_product(
     Returns full product information including recognition metadata.
     """
     # Query product
-    stmt = select(Product).where(
-        Product.id == product_id,
-        Product.user_id == current_user.id
-    )
+    stmt = select(Product).where(Product.id == product_id)
+    if not current_user.is_admin:
+        stmt = stmt.where(Product.user_id == current_user.id)
     result = await db.execute(stmt)
     product = result.scalar_one_or_none()
 
@@ -265,10 +346,9 @@ async def update_product(
     Allows manual correction of AI-recognized attributes.
     """
     # Query product
-    stmt = select(Product).where(
-        Product.id == product_id,
-        Product.user_id == current_user.id
-    )
+    stmt = select(Product).where(Product.id == product_id)
+    if not current_user.is_admin:
+        stmt = stmt.where(Product.user_id == current_user.id)
     result = await db.execute(stmt)
     product = result.scalar_one_or_none()
 
@@ -304,10 +384,9 @@ async def delete_product_endpoint(
     - Reclaims storage quota
     """
     # Query product
-    stmt = select(Product).where(
-        Product.id == product_id,
-        Product.user_id == current_user.id
-    )
+    stmt = select(Product).where(Product.id == product_id)
+    if not current_user.is_admin:
+        stmt = stmt.where(Product.user_id == current_user.id)
     result = await db.execute(stmt)
     product = result.scalar_one_or_none()
 
@@ -327,7 +406,7 @@ async def delete_product_endpoint(
     # Reclaim storage quota
     stmt = (
         update(User)
-        .where(User.id == current_user.id)
+        .where(User.id == product.user_id)
         .values(storage_used_bytes=User.storage_used_bytes - product.image_size_bytes)
     )
     await db.execute(stmt)

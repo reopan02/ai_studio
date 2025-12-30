@@ -2,7 +2,7 @@ import os
 import base64
 import io
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict, Any
 from PIL import Image
 from uuid import uuid4
 
@@ -77,6 +77,73 @@ def compress_image_if_needed(
         raise ProductStorageError(f"Failed to compress image: {str(e)}")
 
 
+def prepare_image_for_llm(
+    image_data: bytes,
+    max_size_bytes: int = 5 * 1024 * 1024,
+    quality: int = 85,
+) -> Tuple[bytes, Dict[str, Any]]:
+    """
+    Prepare image bytes for LLM vision models.
+
+    - Converts non-JPEG images to JPEG for compatibility.
+    - Compresses images larger than max_size_bytes.
+
+    Returns:
+        Tuple of (processed_image_bytes, preprocessing_metadata)
+    """
+    original_size_bytes = len(image_data)
+    original_format = get_image_format(image_data)
+
+    preprocessing: Dict[str, Any] = {
+        "original_format": original_format,
+        "original_size_bytes": original_size_bytes,
+        "processed_format": original_format,
+        "processed_size_bytes": original_size_bytes,
+        "was_converted": False,
+        "was_compressed": False,
+        "quality": quality,
+        "max_size_bytes": max_size_bytes,
+    }
+
+    needs_jpeg = original_format not in {"jpg", "jpeg"}
+    needs_compress = original_size_bytes > max_size_bytes
+
+    if not needs_jpeg and not needs_compress:
+        return image_data, preprocessing
+
+    try:
+        img = Image.open(io.BytesIO(image_data))
+
+        if img.mode in ("RGBA", "LA", "P"):
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            background.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        output = io.BytesIO()
+        img.save(output, format="JPEG", quality=quality, optimize=True)
+        processed_data = output.getvalue()
+
+        # If still too large, reduce quality further.
+        if len(processed_data) > max_size_bytes and quality > 50:
+            output = io.BytesIO()
+            img.save(output, format="JPEG", quality=50, optimize=True)
+            processed_data = output.getvalue()
+
+        preprocessing["processed_format"] = "jpeg"
+        preprocessing["processed_size_bytes"] = len(processed_data)
+        preprocessing["was_converted"] = needs_jpeg
+        preprocessing["was_compressed"] = needs_compress
+
+        return processed_data, preprocessing
+
+    except Exception as e:
+        raise ProductStorageError(f"Failed to prepare image for LLM: {str(e)}")
+
+
 def save_product_image(
     user_id: str,
     product_id: str,
@@ -102,13 +169,12 @@ def save_product_image(
         # Ensure user directory exists
         user_dir = get_user_products_dir(user_id)
 
-        # Normalize format
-        if original_format.lower() in ('jpg', 'jpeg'):
-            ext = 'jpg'
-        elif original_format.lower() == 'png':
-            ext = 'png'
+        # Normalize and validate format
+        fmt = (original_format or "").lower().lstrip(".")
+        if fmt in {"jpg", "jpeg", "png"}:
+            ext = fmt
         else:
-            ext = 'jpg'  # Default to jpg
+            raise ProductStorageError(f"Unsupported image format: {original_format}")
 
         # Generate filename
         filename = f"{product_id}.{ext}"
@@ -142,9 +208,11 @@ def delete_product_image(image_url: str) -> bool:
     """
     try:
         # Convert URL to file path
-        if image_url.startswith('/uploads/products/'):
-            # Remove leading slash and convert to path
-            relative_path = image_url.lstrip('/')
+        if image_url.startswith('/static/uploads/products/') or image_url.startswith('/uploads/products/'):
+            relative_path = image_url
+            if image_url.startswith("/static/"):
+                relative_path = image_url[len("/static/"):]
+            relative_path = relative_path.lstrip("/")
             file_path = Path("app/static") / relative_path
 
             if file_path.exists():

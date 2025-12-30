@@ -22,6 +22,7 @@ npm run build
 至少需要配置：
 
 - `API_KEY`：提供商 Key（现有逻辑使用）
+- `LLM_MODEL`：用于产品识别的模型名（默认：`openai/gpt-4o-mini`，需支持图片输入）
 - `DATABASE_URL`：例如 `postgresql+asyncpg://user:password@127.0.0.1:5432/video_api`
 - `JWT_SECRET_KEY`：用于签发登录 Token（务必自行设置高强度随机值）
 - `STORAGE_MASTER_KEY`：用于加密存储每个用户的视频请求/响应数据（务必自行设置高强度随机值）
@@ -34,6 +35,7 @@ npm run build
 - 主页面：`GET /`（登录后可访问，支持生成并加密保存记录）
 - 存储库：`GET /storage`（查看/删除已保存的视频记录）
 - 视频生成：`GET /video`（同样需要登录）
+- 产品库：`GET /products`（上传产品图片并进行 AI 识别）
 - 站点图标：`GET /favicon.ico`（文件位于 `app/static/favicon.ico`）
 
 ### 静态资源缓存（304 说明）

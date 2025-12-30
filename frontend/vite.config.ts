@@ -20,7 +20,8 @@ export default defineConfig({
         video: resolve(__dirname, 'video.html'),
         storage: resolve(__dirname, 'storage.html'),
         admin: resolve(__dirname, 'admin.html'),
-        image: resolve(__dirname, 'image.html')
+        image: resolve(__dirname, 'image.html'),
+        products: resolve(__dirname, 'products.html')
       }
     }
   }

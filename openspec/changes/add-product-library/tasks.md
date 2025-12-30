@@ -21,7 +21,7 @@
 - [x] 3.3 Create directory structure `static/uploads/products/{user_id}/` on server startup
 - [x] 3.4 Implement quota enforcement check: validate `storage_used_bytes + image_size <= storage_quota_bytes`
 - [x] 3.5 Implement atomic quota update: increment/decrement `storage_used_bytes` in database transaction
-- [ ] 3.6 Test image upload, compression, and storage with various file sizes and formats
+- [x] 3.6 Test image upload, compression, and storage with various file sizes and formats
 
 ## 4. Backend API Endpoints
 
@@ -32,7 +32,7 @@
 - [x] 4.5 Implement `PUT /api/v1/products/{id}` endpoint: update product attributes with ownership validation
 - [x] 4.6 Implement `DELETE /api/v1/products/{id}` endpoint: delete product, remove image file, reclaim quota
 - [x] 4.7 Add products router to `app/main.py` FastAPI app
-- [ ] 4.8 Test all endpoints with Postman/curl: create, list, get, update, delete
+- [x] 4.8 Test all endpoints with Postman/curl: create, list, get, update, delete
 
 ## 5. Frontend - Product Upload Component
 
@@ -73,15 +73,15 @@
 
 - [ ] 9.1 Test with various product images: clear products on white background, complex scenes, low-quality images
 - [ ] 9.2 Verify confidence scores correlate with recognition accuracy
-- [ ] 9.3 Test quota enforcement: upload until quota full, verify error message, delete product, verify quota reclaimed
+- [x] 9.3 Test quota enforcement: upload until quota full, verify error message, delete product, verify quota reclaimed
 - [ ] 9.4 Test edge cases: corrupted image files, unsupported formats, extremely large files (>100MB)
-- [ ] 9.5 Test cross-user isolation: verify users cannot access other users' products
-- [ ] 9.6 Test admin access: verify admin users can view all products
+- [x] 9.5 Test cross-user isolation: verify users cannot access other users' products
+- [x] 9.6 Test admin access: verify admin users can view all products
 
 ## 10. Documentation and Configuration
 
-- [ ] 10.1 Add LLM API configuration section to README or .env.example
-- [ ] 10.2 Document required environment variables: API_BASE_URL, API_KEY, LLM_MODEL (e.g., "gemini-1.5-flash")
-- [ ] 10.3 Update API documentation (if using OpenAPI/Swagger auto-docs, verify product endpoints appear)
+- [x] 10.1 Add LLM API configuration section to README or .env.example
+- [x] 10.2 Document required environment variables: API_BASE_URL, API_KEY, LLM_MODEL (e.g., "gemini-1.5-flash")
+- [x] 10.3 Update API documentation (if using OpenAPI/Swagger auto-docs, verify product endpoints appear)
 - [x] 10.4 Add code comments explaining AI recognition prompt strategy and confidence scoring
 - [x] 10.5 Document image compression settings and quota management behavior

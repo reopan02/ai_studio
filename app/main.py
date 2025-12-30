@@ -16,6 +16,7 @@ from app.db.session import init_engine
 from app.middleware.csrf import CSRFMiddleware
 from app.middleware.request_logging import RequestLoggingMiddleware
 from app.middleware.web_auth_redirect import WebAuthRedirectMiddleware
+from app.core.product_storage import get_products_upload_dir
 
 
 @asynccontextmanager
@@ -25,6 +26,9 @@ async def lifespan(app: FastAPI):
     backup_task: asyncio.Task | None = None
     if engine:
         await init_db(engine)
+
+    # Ensure upload directories exist before mounting static routes.
+    get_products_upload_dir()
 
     settings = get_settings()
     if engine and settings.BACKUP_ENABLED:
@@ -73,6 +77,7 @@ app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 
 # Mount static files
 app.mount("/static", CacheControlStaticFiles(directory="app/static"), name="static")
+app.mount("/uploads", CacheControlStaticFiles(directory="app/static/uploads", check_dir=False), name="uploads")
 
 
 @app.get("/")
@@ -117,7 +122,7 @@ async def image_page(user: User = Depends(get_current_user)):
 
 @app.get("/products")
 async def products_page(user: User = Depends(get_current_user)):
-    return FileResponse("app/static/product-library.html")
+    return FileResponse("app/static/products.html")
 
 
 @app.get("/health")
