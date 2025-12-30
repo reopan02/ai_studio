@@ -8,6 +8,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum as SQLEnum,
+    Float,
     ForeignKey,
     Integer,
     LargeBinary,
@@ -212,3 +213,28 @@ class ApiRequestLog(Base):
     started_at = Column(DateTime(timezone=True), nullable=False, index=True)
     finished_at = Column(DateTime(timezone=True), nullable=False)
     duration_ms = Column(Integer, nullable=False)
+
+
+class Product(Base):
+    __tablename__ = "products"
+    __table_args__ = (
+        CheckConstraint("image_size_bytes >= 0", name="ck_products_image_size_bytes"),
+        CheckConstraint("recognition_confidence >= 0.0 AND recognition_confidence <= 1.0", name="ck_products_confidence"),
+    )
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    name = Column(String(200), nullable=False)
+    dimensions = Column(String(100), nullable=True)
+    features = Column(JSON, nullable=True)
+    characteristics = Column(JSON, nullable=True)
+
+    original_image_url = Column(String(1000), nullable=False)
+    recognition_confidence = Column(Float, nullable=True)
+    recognition_metadata = Column(JSON, nullable=True)
+
+    image_size_bytes = Column(Integer, nullable=False, default=0)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

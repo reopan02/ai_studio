@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.api.v1 import admin, auth, categories, images, logs, storage, tasks, video, videos
+from app.api.v1 import admin, auth, categories, images, logs, products, storage, tasks, video, videos
 from app.api.deps import get_current_user
 from app.config import get_settings
 from app.models.database import User
@@ -67,6 +67,7 @@ app.include_router(categories.router, prefix="/api/v1", tags=["Data"])
 app.include_router(logs.router, prefix="/api/v1", tags=["Data"])
 app.include_router(videos.router, prefix="/api/v1", tags=["Videos"])
 app.include_router(images.router, prefix="/api/v1", tags=["Images"])
+app.include_router(products.router, prefix="/api/v1", tags=["Products"])
 app.include_router(storage.router, prefix="/api/v1", tags=["Storage"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 
@@ -112,6 +113,11 @@ async def admin_page(user: User = Depends(get_current_user)):
 @app.get("/image")
 async def image_page(user: User = Depends(get_current_user)):
     return FileResponse("app/static/image.html")
+
+
+@app.get("/products")
+async def products_page(user: User = Depends(get_current_user)):
+    return FileResponse("app/static/product-library.html")
 
 
 @app.get("/health")

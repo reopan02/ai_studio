@@ -5,12 +5,15 @@ email-validator
 fastapi
 httpx
 passlib[bcrypt]
+Pillow
 pydantic
 pydantic-settings
 PyJWT
 python-dotenv
 python-multipart
 sqlalchemy[asyncio]
+structllm
 tenacity
 tqdm
 uvicorn[standard]
+

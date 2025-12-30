@@ -272,3 +272,52 @@ class StorageUsage(BaseModel):
 
 class UserQuotaUpdate(BaseModel):
     storage_quota_bytes: int = Field(ge=0)
+
+
+class ProductRecognitionResult(BaseModel):
+    name: str
+    dimensions: Optional[str] = None
+    features: List[str] = []
+    characteristics: List[str] = []
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class ProductCreate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=200)
+    dimensions: Optional[str] = Field(default=None, max_length=100)
+    features: Optional[List[str]] = None
+    characteristics: Optional[List[str]] = None
+
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=200)
+    dimensions: Optional[str] = Field(default=None, max_length=100)
+    features: Optional[List[str]] = None
+    characteristics: Optional[List[str]] = None
+
+
+class ProductSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    dimensions: Optional[str] = None
+    original_image_url: str
+    recognition_confidence: Optional[float] = None
+    image_size_bytes: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class ProductDetail(ProductSummary):
+    features: Optional[List[str]] = None
+    characteristics: Optional[List[str]] = None
+    recognition_metadata: Optional[Dict[str, Any]] = None
+
+
+class ProductListResponse(BaseModel):
+    products: List[ProductSummary]
+    total: int
+    offset: int
+    limit: int
+

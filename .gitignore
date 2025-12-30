@@ -16,6 +16,7 @@ env/
 backups/
 server.pid
 
-# Frontend (Vite/Vue)
+# Windows reserved names
+nul
 frontend/node_modules/
 frontend/.vite/
