@@ -1,10 +1,17 @@
 #!/bin/bash
 
+# 尝试激活虚拟环境
+if [ -f "venv/bin/activate" ]; then
+    source venv/bin/activate
+elif [ -f "../venv/bin/activate" ]; then
+    source ../venv/bin/activate
+fi
+
 # 配置
 APP_NAME="AI Video Generator API"
 MODULE="app.main:app"
-HOST="127.0.0.1"
-PORT=8000
+HOST="0.0.0.0"
+PORT=8999
 LOG_FILE="server.log"
 PID_FILE="server.pid"
 

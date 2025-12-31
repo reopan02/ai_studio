@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     API_BASE_URL: str = "https://api.gpt-best.com"
     API_KEY: str
+    LLM_MODEL: str = "openai/gpt-4o-mini"
 
     DATABASE_URL: Optional[str] = None
     DB_POOL_SIZE: int = 5
@@ -18,8 +19,8 @@ class Settings(BaseSettings):
 
     JWT_SECRET_KEY: Optional[str] = None
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 365 
-    JWT_SESSION_EXPIRE_DAYS: int = 365
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
+    JWT_SESSION_EXPIRE_DAYS: int = 7
 
     COOKIE_SECURE: bool = False
     COOKIE_SAMESITE: str = "lax"
