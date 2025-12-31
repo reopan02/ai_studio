@@ -13,6 +13,7 @@ from app.models.schemas import (
     ProductSummary,
     ProductDetail,
     ProductListResponse,
+    ProductRecognitionResponse,
 )
 from app.core.product_storage import (
     save_product_image,
@@ -31,6 +32,87 @@ from app.clients.llm_client import (
 router = APIRouter()
 
 
+@router.post("/products/recognize", response_model=ProductRecognitionResponse)
+async def recognize_product_preview(
+    image: UploadFile = File(...),
+    raw_text: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Preview recognition: extract product attributes from image + optional raw text.
+
+    This endpoint performs AI recognition but does NOT create a product record.
+    Use this to prefill a form before the user saves.
+
+    - Upload a product image (required)
+    - Optionally provide unstructured text for additional context
+    - Returns structured fields without persisting anything
+    """
+    # Read image data
+    image_data = await image.read()
+
+    # Check image size
+    if len(image_data) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty image file"
+        )
+
+    # Detect image format
+    try:
+        detected_format = get_image_format(image_data)
+    except ProductStorageError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid or unsupported image file",
+        )
+
+    if detected_format not in {"jpeg", "png"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Only JPEG and PNG images are supported",
+        )
+
+    # Prepare image for AI recognition (convert/compress for LLM input)
+    llm_image_data, preprocessing = prepare_image_for_llm(image_data)
+    llm_mime_type = "image/jpeg" if preprocessing["processed_format"] in {"jpg", "jpeg"} else "image/png"
+
+    # AI recognition with optional raw text
+    try:
+        # Convert to base64 for AI recognition
+        image_base64 = image_to_base64(llm_image_data)
+
+        # Call AI recognition with raw_text
+        recognition_result, llm_metadata = await recognize_product_with_metadata(
+            image_base64,
+            mime_type=llm_mime_type,
+            raw_text=raw_text
+        )
+
+        recognition_metadata = {
+            "recognized_at": datetime.utcnow().isoformat(),
+            "model": "structllm",
+            "confidence": recognition_result.confidence,
+            "preprocessing": preprocessing,
+            "llm": llm_metadata,
+        }
+
+        return ProductRecognitionResponse(
+            name=recognition_result.name,
+            dimensions=recognition_result.dimensions,
+            features=recognition_result.features,
+            characteristics=recognition_result.characteristics,
+            confidence=recognition_result.confidence,
+            metadata=recognition_metadata,
+        )
+
+    except (ProductRecognitionError, Exception) as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Product recognition failed: {str(e)}"
+        )
+
+
 @router.post("/products", response_model=ProductDetail, status_code=status.HTTP_201_CREATED)
 async def create_product(
     image: UploadFile = File(...),
@@ -38,15 +120,22 @@ async def create_product(
     dimensions: Optional[str] = Form(None),
     features: Optional[str] = Form(None),  # JSON string
     characteristics: Optional[str] = Form(None),  # JSON string
+    recognition_mode: Optional[str] = Form("auto"),  # auto | manual | prefill
+    recognition_confidence: Optional[float] = Form(None),  # For prefill mode
+    recognition_metadata_json: Optional[str] = Form(None),  # For prefill mode (JSON string)
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Create a new product with image upload and AI recognition.
+    Create a new product with image upload.
 
-    - Upload a product image
-    - AI will automatically extract product attributes
-    - Manual attributes can override AI results
+    Recognition modes:
+    - auto (default): Run AI recognition to extract product attributes
+    - manual: Skip AI and use only manually entered fields
+    - prefill: Skip AI but preserve preview recognition confidence/metadata
+
+    - Upload a product image (required)
+    - Manual attributes override AI results in 'auto' mode
     - Enforces storage quota
     """
     import json
@@ -110,39 +199,62 @@ async def create_product(
     else:
         img_format = filename_ext if filename_ext in {"jpg", "jpeg"} else "jpeg"
 
+    # Validate recognition_mode
+    if recognition_mode not in {"auto", "manual", "prefill"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="recognition_mode must be 'auto', 'manual', or 'prefill'"
+        )
+
     # Prepare image for AI recognition (convert/compress for LLM input only)
     llm_image_data, preprocessing = prepare_image_for_llm(image_data)
     llm_mime_type = "image/jpeg" if preprocessing["processed_format"] in {"jpg", "jpeg"} else "image/png"
 
-    # AI recognition (with fallback to manual entry)
+    # AI recognition based on mode
     recognition_result = None
     recognition_metadata = None
     ai_confidence = 0.0
 
-    try:
-        # Convert to base64 for AI recognition
-        image_base64 = image_to_base64(llm_image_data)
+    if recognition_mode == "auto":
+        # Run AI recognition
+        try:
+            # Convert to base64 for AI recognition
+            image_base64 = image_to_base64(llm_image_data)
 
-        # Call AI recognition
-        recognition_result, llm_metadata = await recognize_product_with_metadata(image_base64, mime_type=llm_mime_type)
+            # Call AI recognition
+            recognition_result, llm_metadata = await recognize_product_with_metadata(image_base64, mime_type=llm_mime_type)
 
-        ai_confidence = recognition_result.confidence
-        recognition_metadata = {
-            "recognized_at": datetime.utcnow().isoformat(),
-            "model": "structllm",
-            "confidence": recognition_result.confidence,
-            "original_result": {
-                "name": recognition_result.name,
-                "dimensions": recognition_result.dimensions,
-                "features": recognition_result.features,
-                "characteristics": recognition_result.characteristics,
-            },
-            "preprocessing": preprocessing,
-            "llm": llm_metadata,
-        }
+            ai_confidence = recognition_result.confidence
+            recognition_metadata = {
+                "recognized_at": datetime.utcnow().isoformat(),
+                "model": "structllm",
+                "confidence": recognition_result.confidence,
+                "original_result": {
+                    "name": recognition_result.name,
+                    "dimensions": recognition_result.dimensions,
+                    "features": recognition_result.features,
+                    "characteristics": recognition_result.characteristics,
+                },
+                "preprocessing": preprocessing,
+                "llm": llm_metadata,
+            }
 
-    except (ProductRecognitionError, Exception) as e:
-        # AI recognition failed - use manual entry or defaults
+        except (ProductRecognitionError, Exception) as e:
+            # AI recognition failed - use manual entry or defaults
+            recognition_result = create_manual_recognition_result(
+                name=name or "未命名产品",
+                dimensions=dimensions,
+                features=manual_features or [],
+                characteristics=manual_characteristics or [],
+            )
+            recognition_metadata = {
+                "error": str(e),
+                "fallback": "manual_entry",
+                "preprocessing": preprocessing,
+            }
+
+    elif recognition_mode == "manual":
+        # Manual mode: skip AI entirely, use confidence=0.0
         recognition_result = create_manual_recognition_result(
             name=name or "未命名产品",
             dimensions=dimensions,
@@ -150,10 +262,44 @@ async def create_product(
             characteristics=manual_characteristics or [],
         )
         recognition_metadata = {
-            "error": str(e),
-            "fallback": "manual_entry",
+            "mode": "manual",
             "preprocessing": preprocessing,
         }
+
+    elif recognition_mode == "prefill":
+        # Prefill mode: use preview recognition confidence/metadata
+        ai_confidence = recognition_confidence if recognition_confidence is not None else 0.0
+
+        # Validate confidence range
+        if ai_confidence < 0.0:
+            ai_confidence = 0.0
+        elif ai_confidence > 1.0:
+            ai_confidence = 1.0
+
+        # Parse recognition_metadata_json if provided
+        if recognition_metadata_json:
+            try:
+                recognition_metadata = json.loads(recognition_metadata_json)
+            except json.JSONDecodeError:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="recognition_metadata_json must be valid JSON"
+                )
+        else:
+            recognition_metadata = {
+                "mode": "prefill",
+                "preprocessing": preprocessing,
+            }
+
+        # Create recognition result from manual fields
+        recognition_result = create_manual_recognition_result(
+            name=name or "未命名产品",
+            dimensions=dimensions,
+            features=manual_features or [],
+            characteristics=manual_characteristics or [],
+        )
+        # Override confidence since this is from prefill
+        recognition_result.confidence = ai_confidence
 
     # Override AI results with manual input if provided
     final_name = name if name else recognition_result.name

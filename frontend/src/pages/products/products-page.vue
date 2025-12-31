@@ -77,6 +77,18 @@
           </div>
         </div>
 
+        <div class="form-group" style="margin-top: 8px">
+          <label>无结构化信息（可选）</label>
+          <textarea
+            v-model="form.rawText"
+            rows="3"
+            :disabled="isEditing"
+            placeholder="粘贴产品信息，例如从商品页面复制的描述文本，AI会结合图片提取结构化信息"></textarea>
+          <div class="form-hint">
+            提供此信息可帮助AI更准确地识别产品属性
+          </div>
+        </div>
+
         <div class="form-grid" style="margin-top: 8px">
           <div class="form-group">
             <label>功能特征（每行一个）</label>
@@ -89,8 +101,17 @@
         </div>
 
         <div class="form-actions">
-          <button v-if="!isEditing" class="btn btn-primary" type="button" :disabled="saving" @click="createProduct">
-            {{ saving ? '上传中...' : '上传并识别' }}
+          <button
+            v-if="!isEditing"
+            class="btn btn-secondary"
+            type="button"
+            :disabled="saving || prefilling"
+            @click="aiPrefillProduct"
+          >
+            {{ prefilling ? 'AI整理中...' : 'AI整理预填' }}
+          </button>
+          <button v-if="!isEditing" class="btn btn-primary" type="button" :disabled="saving || prefilling" @click="createProduct">
+            {{ saving ? '保存中...' : '保存产品' }}
           </button>
           <button v-else class="btn btn-primary" type="button" :disabled="saving" @click="updateProduct">
             {{ saving ? '保存中...' : '保存修改' }}
@@ -190,6 +211,16 @@ type ProductSummary = {
 type ProductDetail = ProductSummary & {
   features: string[] | null;
   characteristics: string[] | null;
+  recognition_metadata?: Record<string, unknown> | null;
+};
+
+type ProductRecognitionResponse = {
+  name: string;
+  dimensions: string | null;
+  features: string[];
+  characteristics: string[];
+  confidence: number;
+  metadata?: Record<string, unknown> | null;
 };
 
 type ProductListResponse = {
@@ -217,12 +248,15 @@ const previewUrl = ref<string | null>(null);
 const selectedFile = ref<File | null>(null);
 const editingProductId = ref<string | null>(null);
 const recognitionConfidence = ref<number | null>(null);
+const prefilling = ref(false);
+const previewRecognitionData = ref<{ confidence: number; metadata: Record<string, unknown> } | null>(null);
 
 const form = reactive({
   name: '',
   dimensions: '',
   featuresText: '',
   characteristicsText: '',
+  rawText: '',
 });
 
 const isEditing = computed(() => Boolean(editingProductId.value));
@@ -329,10 +363,12 @@ function resetForm() {
   selectedFile.value = null;
   editingProductId.value = null;
   recognitionConfidence.value = null;
+  previewRecognitionData.value = null;
   form.name = '';
   form.dimensions = '';
   form.featuresText = '';
   form.characteristicsText = '';
+  form.rawText = '';
 }
 
 function handleFileChange(event: Event) {
@@ -344,9 +380,53 @@ function handleFileChange(event: Event) {
   selectedFile.value = file;
   editingProductId.value = null;
   recognitionConfidence.value = null;
+  previewRecognitionData.value = null;
 
   releasePreviewUrl();
   previewUrl.value = URL.createObjectURL(file);
+}
+
+async function aiPrefillProduct() {
+  clearMessages();
+
+  if (!selectedFile.value) {
+    setError('请先选择图片');
+    return;
+  }
+
+  prefilling.value = true;
+  try {
+    const fd = new FormData();
+    fd.append('image', selectedFile.value);
+    const rawText = form.rawText.trim();
+    if (rawText) fd.append('raw_text', rawText);
+
+    const res = await apiFetch('/api/v1/products/recognize', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(await readApiError(res));
+
+    const recognized = (await res.json()) as ProductRecognitionResponse;
+
+    // Prefill form fields with AI recognition results
+    form.name = recognized.name || '';
+    form.dimensions = recognized.dimensions || '';
+    form.featuresText = (recognized.features || []).join('\n');
+    form.characteristicsText = (recognized.characteristics || []).join('\n');
+
+    // Store preview recognition data for later use in save
+    recognitionConfidence.value = recognized.confidence;
+    previewRecognitionData.value = {
+      confidence: recognized.confidence,
+      metadata: recognized.metadata || {},
+    };
+
+    setSuccess(
+      `AI整理完成（置信度：${Math.round(recognized.confidence * 100)}%），可编辑后保存`
+    );
+  } catch (e) {
+    setError((e as Error).message || String(e));
+  } finally {
+    prefilling.value = false;
+  }
 }
 
 async function createProduct() {
@@ -370,6 +450,16 @@ async function createProduct() {
     if (features.length) fd.append('features', JSON.stringify(features));
     if (characteristics.length) fd.append('characteristics', JSON.stringify(characteristics));
 
+    // If we have preview recognition data, use prefill mode
+    // Otherwise, use manual mode to skip AI (user may have filled fields manually)
+    if (previewRecognitionData.value) {
+      fd.append('recognition_mode', 'prefill');
+      fd.append('recognition_confidence', String(previewRecognitionData.value.confidence));
+      fd.append('recognition_metadata_json', JSON.stringify(previewRecognitionData.value.metadata));
+    } else {
+      fd.append('recognition_mode', 'manual');
+    }
+
     const res = await apiFetch('/api/v1/products', { method: 'POST', body: fd });
     if (!res.ok) throw new Error(await readApiError(res));
 
@@ -380,6 +470,7 @@ async function createProduct() {
 
     editingProductId.value = created.id;
     recognitionConfidence.value = created.recognition_confidence ?? 0.0;
+    previewRecognitionData.value = null;
 
     releasePreviewUrl();
     previewUrl.value = created.original_image_url;

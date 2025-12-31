@@ -282,6 +282,16 @@ class ProductRecognitionResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+class ProductRecognitionResponse(BaseModel):
+    """Response from preview recognition endpoint"""
+    name: str
+    dimensions: Optional[str] = None
+    features: List[str] = []
+    characteristics: List[str] = []
+    confidence: float = Field(ge=0.0, le=1.0)
+    metadata: Optional[Dict[str, Any]] = None
+
+
 class ProductCreate(BaseModel):
     name: Optional[str] = Field(default=None, max_length=200)
     dimensions: Optional[str] = Field(default=None, max_length=100)

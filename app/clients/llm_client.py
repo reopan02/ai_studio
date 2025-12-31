@@ -84,6 +84,7 @@ def create_llm_client() -> Optional[object]:
 async def recognize_product_with_metadata(
     image_base64: str,
     mime_type: str = "image/jpeg",
+    raw_text: Optional[str] = None,
 ) -> Tuple[ProductRecognitionResult, Dict[str, Any]]:
     """
     Recognize product attributes from an image using LLM vision capabilities.
@@ -91,6 +92,7 @@ async def recognize_product_with_metadata(
     Args:
         image_base64: Base64-encoded product image
         mime_type: MIME type for the image data URI
+        raw_text: Optional unstructured text to use as additional context
 
     Returns:
         Tuple of (ProductRecognitionResult, metadata)
@@ -113,7 +115,8 @@ async def recognize_product_with_metadata(
 - 产品特点(characteristics): 产品的特色标签,如"便携"、"大容量"等,以列表形式返回
 - 置信度(confidence): 你对识别结果的置信度,0.0-1.0之间的浮点数
 
-如果图片不清晰或信息不足,请将置信度设置为较低值。"""
+如果图片不清晰或信息不足,请将置信度设置为较低值。
+如果提供了额外的文本信息,请结合图片和文本进行识别,优先使用能够从图片中视觉确认的信息。如果文本与图片冲突,降低置信度。"""
 
     # User prompt with structured output request
     user_prompt = """识别这张图片中的产品,返回产品名称、尺寸、功能特征和特点。
@@ -123,6 +126,10 @@ async def recognize_product_with_metadata(
 - features: 功能特征列表(字符串数组)
 - characteristics: 产品特点列表(字符串数组)
 - confidence: 置信度(0.0-1.0之间的浮点数)"""
+
+    # Add raw text context if provided
+    if raw_text and raw_text.strip():
+        user_prompt += f"\n\n以下是用户提供的额外产品信息,请结合图片使用:\n{raw_text.strip()}"
 
     try:
         # Call LLM API with structured output

@@ -1,28 +1,28 @@
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
-export default defineConfig({
-  base: '/static/',
+export default defineConfig(({ command }) => ({
+  base: command === 'serve' ? '/' : '/static/',
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src')
+      '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
   build: {
-    outDir: resolve(__dirname, '../app/static'),
+    outDir: fileURLToPath(new URL('../app/static', import.meta.url)),
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        app: resolve(__dirname, 'app.html'),
-        login: resolve(__dirname, 'login.html'),
-        video: resolve(__dirname, 'video.html'),
-        storage: resolve(__dirname, 'storage.html'),
-        admin: resolve(__dirname, 'admin.html'),
-        image: resolve(__dirname, 'image.html'),
-        products: resolve(__dirname, 'products.html')
+        app: fileURLToPath(new URL('./app.html', import.meta.url)),
+        login: fileURLToPath(new URL('./login.html', import.meta.url)),
+        video: fileURLToPath(new URL('./video.html', import.meta.url)),
+        storage: fileURLToPath(new URL('./storage.html', import.meta.url)),
+        admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
+        image: fileURLToPath(new URL('./image.html', import.meta.url)),
+        products: fileURLToPath(new URL('./products.html', import.meta.url))
       }
     }
   }
-});
+}));

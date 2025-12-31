@@ -45,6 +45,17 @@
         <div class="portal-desc">多图参考的图像编辑（nano-banana）</div>
       </a>
 
+      <a href="/products" class="card portal-card">
+        <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"></path>
+          <path d="M9 2v5"></path>
+          <path d="M15 2v5"></path>
+          <path d="M2 9h20"></path>
+        </svg>
+        <div class="portal-title">产品库</div>
+        <div class="portal-desc">产品图片识别与管理</div>
+      </a>
+
       <a v-if="isAdmin" href="/admin" class="card portal-card">
         <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path
