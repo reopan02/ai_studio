@@ -41,6 +41,43 @@ class ImageEditsClient:
             ep = "/" + ep
         return f"{self.base_url}{ep}"
 
+    async def images_generations(
+        self,
+        *,
+        model: str,
+        prompt: str,
+        n: int = 1,
+        size: str | None = None,
+        response_format: str | None = None,
+    ) -> Any:
+        """Text-to-image generation following OpenAI DALL-E format."""
+        endpoint = "/v1/images/generations"
+        url = self._build_url(endpoint)
+
+        payload: dict[str, Any] = {"model": model, "prompt": prompt}
+        if n and n > 1:
+            payload["n"] = n
+        if size:
+            payload["size"] = size
+        if response_format:
+            payload["response_format"] = response_format
+
+        settings = get_settings()
+        retrying = AsyncRetrying(
+            stop=stop_after_attempt(settings.MAX_RETRIES),
+            wait=wait_exponential(multiplier=settings.RETRY_BACKOFF_FACTOR),
+            retry=retry_if_exception_type((httpx.TimeoutException, httpx.NetworkError)),
+            reraise=True,
+        )
+
+        async for attempt in retrying:
+            with attempt:
+                response = await self.client.post(url, json=payload)
+                response.raise_for_status()
+                return response.json()
+
+        raise RuntimeError("Unreachable")
+
     async def images_edits(
         self,
         *,

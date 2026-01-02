@@ -206,318 +206,530 @@
       </aside>
 
       <!-- Main Content -->
+
       <main class="main-content">
-        <!-- Product Info Panel -->
-        <div class="content-panel" v-if="selectedProduct">
-          <div class="panel-header">
-            <h3>产品信息</h3>
-            <span class="panel-hint">勾选要包含在 Prompt 中的字段</span>
-          </div>
-          <div class="product-fields">
-            <div class="field-row">
-              <label class="field-checkbox">
-                <input type="checkbox" v-model="fieldToggles.name">
-                <span>产品名称</span>
-              </label>
-              <input type="text" class="form-input" v-model="editableProduct.name" :disabled="!fieldToggles.name">
+        <section class="workflow-section">
+          <div class="content-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="step-indicator">1</span>
+                <div>
+                  <h3>产品信息</h3>
+                  <p class="panel-subtitle">勾选要包含在提示词中的字段</p>
+                </div>
+              </div>
+              <span class="panel-hint" v-if="!selectedProduct">请先从左侧选择产品</span>
             </div>
-            <div class="field-row">
-              <label class="field-checkbox">
-                <input type="checkbox" v-model="fieldToggles.dimensions">
-                <span>尺寸规格</span>
-              </label>
-              <input type="text" class="form-input" v-model="editableProduct.dimensions" :disabled="!fieldToggles.dimensions">
-            </div>
-            <div class="field-row">
-              <label class="field-checkbox">
-                <input type="checkbox" v-model="fieldToggles.features">
-                <span>功能特征</span>
-              </label>
-              <textarea class="form-input" v-model="editableProduct.featuresText" :disabled="!fieldToggles.features" rows="2" placeholder="每行一个特征"></textarea>
-            </div>
-            <div class="field-row">
-              <label class="field-checkbox">
-                <input type="checkbox" v-model="fieldToggles.characteristics">
-                <span>产品特点</span>
-              </label>
-              <textarea class="form-input" v-model="editableProduct.characteristicsText" :disabled="!fieldToggles.characteristics" rows="2" placeholder="每行一个特点"></textarea>
-            </div>
-          </div>
-        </div>
 
-        <!-- Template Modules -->
-        <div class="content-panel">
-          <div class="panel-header">
-            <h3>Prompt 模板</h3>
-            <button class="btn btn-ghost btn-sm" @click="resetTemplates">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="1 4 1 10 7 10"/>
-                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-              </svg>
-              重置默认
-            </button>
-          </div>
-
-          <!-- Scene Selection -->
-          <div class="template-module">
-            <div class="module-header">
-              <span class="module-title">场景选择</span>
-              <button class="btn btn-ghost btn-icon-sm" @click="addOption('scene')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="12" y1="5" x2="12" y2="19"/>
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </button>
-            </div>
-            <div class="option-chips">
-              <div
-                v-for="(option, idx) in templates.scene"
-                :key="'scene-' + idx"
-                class="option-chip"
-                :class="{ selected: selectedTemplates.scene.includes(option) }"
-              >
-                <span
-                  v-if="editingOption.category !== 'scene' || editingOption.index !== idx"
-                  @click="toggleOption('scene', option)"
-                >{{ option }}</span>
+            <div v-if="selectedProduct" class="product-fields">
+              <div class="field-row">
+                <label class="field-checkbox">
+                  <input type="checkbox" v-model="fieldToggles.name">
+                  <span>产品名称</span>
+                </label>
                 <input
-                  v-else
                   type="text"
-                  class="option-edit-input"
-                  v-model="templates.scene[idx]"
-                  @blur="finishEditing"
-                  @keyup.enter="finishEditing"
-                  ref="optionInput"
+                  class="form-input"
+                  v-model="editableProduct.name"
+                  :disabled="!fieldToggles.name"
+                  placeholder="例如：保温杯"
                 >
-                <button class="chip-edit" @click.stop="startEditing('scene', idx)" v-if="editingOption.category !== 'scene' || editingOption.index !== idx">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                </button>
-                <button class="chip-delete" @click.stop="removeOption('scene', idx)">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
+              </div>
+              <div class="field-row">
+                <label class="field-checkbox">
+                  <input type="checkbox" v-model="fieldToggles.dimensions">
+                  <span>尺寸规格</span>
+                </label>
+                <input
+                  type="text"
+                  class="form-input"
+                  v-model="editableProduct.dimensions"
+                  :disabled="!fieldToggles.dimensions"
+                  placeholder="例如：500ml"
+                >
+              </div>
+              <div class="field-row">
+                <label class="field-checkbox">
+                  <input type="checkbox" v-model="fieldToggles.features">
+                  <span>功能特征</span>
+                </label>
+                <textarea
+                  class="form-input"
+                  v-model="editableProduct.featuresText"
+                  :disabled="!fieldToggles.features"
+                  rows="2"
+                  placeholder="每行一个特征"
+                ></textarea>
+              </div>
+              <div class="field-row">
+                <label class="field-checkbox">
+                  <input type="checkbox" v-model="fieldToggles.characteristics">
+                  <span>产品特点</span>
+                </label>
+                <textarea
+                  class="form-input"
+                  v-model="editableProduct.characteristicsText"
+                  :disabled="!fieldToggles.characteristics"
+                  rows="2"
+                  placeholder="每行一个特点"
+                ></textarea>
               </div>
             </div>
-          </div>
-
-          <!-- Shooting Angle -->
-          <div class="template-module">
-            <div class="module-header">
-              <span class="module-title">拍摄角度</span>
-              <button class="btn btn-ghost btn-icon-sm" @click="addOption('angle')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="12" y1="5" x2="12" y2="19"/>
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </button>
+            <div v-else class="panel-empty">
+              选择产品后将自动填充名称、规格与特征信息。
             </div>
-            <div class="option-chips">
-              <div
-                v-for="(option, idx) in templates.angle"
-                :key="'angle-' + idx"
-                class="option-chip"
-                :class="{ selected: selectedTemplates.angle.includes(option) }"
-              >
-                <span
-                  v-if="editingOption.category !== 'angle' || editingOption.index !== idx"
-                  @click="toggleOption('angle', option)"
-                >{{ option }}</span>
-                <input
-                  v-else
-                  type="text"
-                  class="option-edit-input"
-                  v-model="templates.angle[idx]"
-                  @blur="finishEditing"
-                  @keyup.enter="finishEditing"
-                >
-                <button class="chip-edit" @click.stop="startEditing('angle', idx)" v-if="editingOption.category !== 'angle' || editingOption.index !== idx">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                </button>
-                <button class="chip-delete" @click.stop="removeOption('angle', idx)">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
+          </div>
+        </section>
+
+        <section class="workflow-section">
+          <div class="content-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="step-indicator">2</span>
+                <div>
+                  <h3>模板与标签</h3>
+                  <p class="panel-subtitle">点击标签可多选，支持就地编辑</p>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <!-- Style/Lighting -->
-          <div class="template-module">
-            <div class="module-header">
-              <span class="module-title">风格 / 光影 <span class="optional-tag">(可选)</span></span>
-              <button class="btn btn-ghost btn-icon-sm" @click="addOption('style')">
+              <button class="btn btn-ghost btn-sm" @click="resetTemplates">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="12" y1="5" x2="12" y2="19"/>
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </button>
-            </div>
-            <div class="option-chips">
-              <div
-                v-for="(option, idx) in templates.style"
-                :key="'style-' + idx"
-                class="option-chip"
-                :class="{ selected: selectedTemplates.style.includes(option) }"
-              >
-                <span
-                  v-if="editingOption.category !== 'style' || editingOption.index !== idx"
-                  @click="toggleOption('style', option)"
-                >{{ option }}</span>
-                <input
-                  v-else
-                  type="text"
-                  class="option-edit-input"
-                  v-model="templates.style[idx]"
-                  @blur="finishEditing"
-                  @keyup.enter="finishEditing"
-                >
-                <button class="chip-edit" @click.stop="startEditing('style', idx)" v-if="editingOption.category !== 'style' || editingOption.index !== idx">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                </button>
-                <button class="chip-delete" @click.stop="removeOption('style', idx)">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Generation Target -->
-          <div class="template-module">
-            <div class="module-header">
-              <span class="module-title">生成目标</span>
-              <button class="btn btn-ghost btn-icon-sm" @click="addOption('target')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="12" y1="5" x2="12" y2="19"/>
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </button>
-            </div>
-            <div class="option-chips">
-              <div
-                v-for="(option, idx) in templates.target"
-                :key="'target-' + idx"
-                class="option-chip"
-                :class="{ selected: selectedTemplates.target.includes(option) }"
-              >
-                <span
-                  v-if="editingOption.category !== 'target' || editingOption.index !== idx"
-                  @click="toggleOption('target', option)"
-                >{{ option }}</span>
-                <input
-                  v-else
-                  type="text"
-                  class="option-edit-input"
-                  v-model="templates.target[idx]"
-                  @blur="finishEditing"
-                  @keyup.enter="finishEditing"
-                >
-                <button class="chip-edit" @click.stop="startEditing('target', idx)" v-if="editingOption.category !== 'target' || editingOption.index !== idx">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                </button>
-                <button class="chip-delete" @click.stop="removeOption('target', idx)">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Prompt Preview -->
-        <div class="content-panel prompt-preview-panel">
-          <div class="panel-header">
-            <h3>Prompt 预览</h3>
-            <button class="btn btn-ghost btn-sm" @click="copyPrompt" :disabled="!composedPrompt">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              复制
-            </button>
-          </div>
-          <div class="prompt-preview">
-            <p v-if="composedPrompt">{{ composedPrompt }}</p>
-            <p v-else class="prompt-placeholder">选择产品和模板选项后，Prompt 将在此显示...</p>
-          </div>
-        </div>
-
-        <!-- Generation Result -->
-        <div class="result-area">
-          <div class="result-placeholder" v-if="!generating && !generatedImage">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-            <h3>准备生成</h3>
-            <p>选择产品、参考图片和模板选项，然后点击生成</p>
-          </div>
-
-          <div class="loading-state" v-if="generating">
-            <div class="spinner"></div>
-            <p>正在生成图片...</p>
-          </div>
-
-          <div class="result-container" v-if="generatedImage && !generating">
-            <img :src="generatedImage" alt="Generated image" class="result-image">
-            <div class="result-actions">
-              <button class="btn btn-secondary" @click="downloadImage">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                下载
-              </button>
-              <button class="btn btn-primary" @click="generateImage">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="1 4 1 10 7 10"/>
                   <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
                 </svg>
-                重新生成
+                重置模板
               </button>
             </div>
-          </div>
-        </div>
 
-        <!-- Generate Button -->
-        <div class="generate-section">
-          <button
-            class="generate-btn"
-            :disabled="!canGenerate || generating"
-            @click="generateImage"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" v-if="!generating">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-            <div class="spinner-small" v-else></div>
-            {{ generating ? '生成中...' : '生成电商图' }}
-          </button>
-          <div class="generate-hint" v-if="!canGenerate">
-            {{ generateHint }}
+            <div class="template-modules">
+              <div class="template-module">
+                <div class="module-header">
+                  <span class="module-title">场景选择</span>
+                  <button class="btn btn-ghost btn-icon-sm" @click="addOption('scene')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="option-chips">
+                  <div
+                    v-for="option in templates.scene"
+                    :key="option.id"
+                    class="option-chip"
+                    :class="{
+                      selected: selectedTemplates.scene.includes(option.id),
+                      editing: isEditingOption('scene', option.id)
+                    }"
+                  >
+                    <span
+                      v-if="!isEditingOption('scene', option.id)"
+                      @click="toggleOption('scene', option.id)"
+                    >{{ option.label }}</span>
+                    <input
+                      v-else
+                      type="text"
+                      class="option-edit-input"
+                      v-model="option.label"
+                      :data-option-id="option.id"
+                      @blur="finishEditing"
+                      @keydown.enter.prevent="finishEditing"
+                    >
+                    <button
+                      class="chip-edit"
+                      @click.stop="startEditing('scene', option.id)"
+                      v-if="!isEditingOption('scene', option.id)"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button class="chip-delete" @click.stop="removeOption('scene', option.id)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="template-module">
+                <div class="module-header">
+                  <span class="module-title">拍摄角度</span>
+                  <button class="btn btn-ghost btn-icon-sm" @click="addOption('angle')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="option-chips">
+                  <div
+                    v-for="option in templates.angle"
+                    :key="option.id"
+                    class="option-chip"
+                    :class="{
+                      selected: selectedTemplates.angle.includes(option.id),
+                      editing: isEditingOption('angle', option.id)
+                    }"
+                  >
+                    <span
+                      v-if="!isEditingOption('angle', option.id)"
+                      @click="toggleOption('angle', option.id)"
+                    >{{ option.label }}</span>
+                    <input
+                      v-else
+                      type="text"
+                      class="option-edit-input"
+                      v-model="option.label"
+                      :data-option-id="option.id"
+                      @blur="finishEditing"
+                      @keydown.enter.prevent="finishEditing"
+                    >
+                    <button
+                      class="chip-edit"
+                      @click.stop="startEditing('angle', option.id)"
+                      v-if="!isEditingOption('angle', option.id)"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button class="chip-delete" @click.stop="removeOption('angle', option.id)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="template-module">
+                <div class="module-header">
+                  <span class="module-title">风格 / 光影 <span class="optional-tag">(可选)</span></span>
+                  <button class="btn btn-ghost btn-icon-sm" @click="addOption('style')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="option-chips">
+                  <div
+                    v-for="option in templates.style"
+                    :key="option.id"
+                    class="option-chip"
+                    :class="{
+                      selected: selectedTemplates.style.includes(option.id),
+                      editing: isEditingOption('style', option.id)
+                    }"
+                  >
+                    <span
+                      v-if="!isEditingOption('style', option.id)"
+                      @click="toggleOption('style', option.id)"
+                    >{{ option.label }}</span>
+                    <input
+                      v-else
+                      type="text"
+                      class="option-edit-input"
+                      v-model="option.label"
+                      :data-option-id="option.id"
+                      @blur="finishEditing"
+                      @keydown.enter.prevent="finishEditing"
+                    >
+                    <button
+                      class="chip-edit"
+                      @click.stop="startEditing('style', option.id)"
+                      v-if="!isEditingOption('style', option.id)"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button class="chip-delete" @click.stop="removeOption('style', option.id)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="template-module">
+                <div class="module-header">
+                  <span class="module-title">生成目标</span>
+                  <button class="btn btn-ghost btn-icon-sm" @click="addOption('target')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="option-chips">
+                  <div
+                    v-for="option in templates.target"
+                    :key="option.id"
+                    class="option-chip"
+                    :class="{
+                      selected: selectedTemplates.target.includes(option.id),
+                      editing: isEditingOption('target', option.id)
+                    }"
+                  >
+                    <span
+                      v-if="!isEditingOption('target', option.id)"
+                      @click="toggleOption('target', option.id)"
+                    >{{ option.label }}</span>
+                    <input
+                      v-else
+                      type="text"
+                      class="option-edit-input"
+                      v-model="option.label"
+                      :data-option-id="option.id"
+                      @blur="finishEditing"
+                      @keydown.enter.prevent="finishEditing"
+                    >
+                    <button
+                      class="chip-edit"
+                      @click.stop="startEditing('target', option.id)"
+                      v-if="!isEditingOption('target', option.id)"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button class="chip-delete" @click.stop="removeOption('target', option.id)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="template-editor">
+              <div class="template-editor-header">
+                <div>
+                  <h4>提示词模板</h4>
+                  <p class="template-editor-subtitle">自定义提示词结构，可插入变量</p>
+                </div>
+                <button class="btn btn-ghost btn-sm" @click="resetPromptTemplate">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                  </svg>
+                  重置模板
+                </button>
+              </div>
+              <div class="template-editor-section">
+                <div class="template-editor-hint">
+                  使用 <code v-text="'{{变量名}}'"></code> 插入变量，支持默认值：
+                  <code v-text="'{{变量名|默认值}}'"></code>
+                </div>
+                <textarea
+                  class="form-input template-textarea"
+                  v-model="promptTemplate"
+                  rows="4"
+                  placeholder="输入提示词模板..."
+                  @input="savePromptTemplate"
+                ></textarea>
+                <div class="variable-reference">
+                  <div class="variable-title">可用变量</div>
+                  <div class="variable-chips">
+                    <span
+                      class="variable-chip"
+                      v-for="v in availableVariables"
+                      :key="v.name"
+                      @click="insertVariable(v.name)"
+                      :title="v.description"
+                    >
+                      <code v-text="'{{' + v.name + '}}'"></code>
+                      <span class="variable-value" v-if="v.currentValue">{{ truncateValue(v.currentValue) }}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
+
+        <section class="workflow-section">
+          <div class="content-panel prompt-preview-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="step-indicator">3</span>
+                <div>
+                  <h3>提示词预览</h3>
+                  <p class="panel-subtitle">分段预览并高亮关键变量</p>
+                </div>
+              </div>
+              <span class="panel-hint" v-if="!composedPrompt">完善产品信息与模板后自动生成</span>
+            </div>
+
+            <div class="prompt-structured">
+              <div class="prompt-row">
+                <span class="prompt-label">产品信息</span>
+                <div class="prompt-value" :class="{ empty: promptSegments.product.length === 0 }">
+                  <template v-if="promptSegments.product.length">
+                    <span
+                      v-for="(item, idx) in promptSegments.product"
+                      :key="`product-${idx}`"
+                      class="prompt-chip"
+                    >{{ item }}</span>
+                  </template>
+                  <span v-else class="prompt-empty">未选择或未填写</span>
+                </div>
+              </div>
+              <div class="prompt-row">
+                <span class="prompt-label">场景</span>
+                <div class="prompt-value" :class="{ empty: promptSegments.scene.length === 0 }">
+                  <template v-if="promptSegments.scene.length">
+                    <span
+                      v-for="(item, idx) in promptSegments.scene"
+                      :key="`scene-${idx}`"
+                      class="prompt-chip"
+                    >{{ item }}</span>
+                  </template>
+                  <span v-else class="prompt-empty">未选择场景</span>
+                </div>
+              </div>
+              <div class="prompt-row">
+                <span class="prompt-label">角度</span>
+                <div class="prompt-value" :class="{ empty: promptSegments.angle.length === 0 }">
+                  <template v-if="promptSegments.angle.length">
+                    <span
+                      v-for="(item, idx) in promptSegments.angle"
+                      :key="`angle-${idx}`"
+                      class="prompt-chip"
+                    >{{ item }}</span>
+                  </template>
+                  <span v-else class="prompt-empty">未选择角度</span>
+                </div>
+              </div>
+              <div class="prompt-row">
+                <span class="prompt-label">风格 / 光影</span>
+                <div class="prompt-value" :class="{ empty: promptSegments.style.length === 0 }">
+                  <template v-if="promptSegments.style.length">
+                    <span
+                      v-for="(item, idx) in promptSegments.style"
+                      :key="`style-${idx}`"
+                      class="prompt-chip"
+                    >{{ item }}</span>
+                  </template>
+                  <span v-else class="prompt-empty">未选择风格</span>
+                </div>
+              </div>
+              <div class="prompt-row">
+                <span class="prompt-label">生成目标</span>
+                <div class="prompt-value" :class="{ empty: promptSegments.target.length === 0 }">
+                  <template v-if="promptSegments.target.length">
+                    <span
+                      v-for="(item, idx) in promptSegments.target"
+                      :key="`target-${idx}`"
+                      class="prompt-chip"
+                    >{{ item }}</span>
+                  </template>
+                  <span v-else class="prompt-empty">未选择目标</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="prompt-full">
+              <div class="prompt-full-header">
+                <div>
+                  <h4>完整 Prompt</h4>
+                  <p class="prompt-full-hint">可直接复制用于生成</p>
+                </div>
+                <button class="btn btn-ghost btn-sm" @click="copyPrompt" :disabled="!composedPrompt">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  复制
+                </button>
+              </div>
+              <div class="prompt-full-body">
+                <p v-if="composedPrompt">{{ composedPrompt }}</p>
+                <p v-else class="prompt-placeholder">选择产品和模板选项后，提示词将在这里生成。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="workflow-section">
+          <div class="content-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="step-indicator">4</span>
+                <div>
+                  <h3>生成与结果</h3>
+                  <p class="panel-subtitle">确认参考图与提示词后开始生成</p>
+                </div>
+              </div>
+              <span class="panel-hint" v-if="generationHint">{{ generationHint }}</span>
+            </div>
+
+            <div class="result-area">
+              <div class="result-placeholder" v-if="!generating && !generatedImage">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <h3>准备生成</h3>
+                <p>选择产品、参考图片与模板选项，然后点击生成。</p>
+              </div>
+
+              <div class="loading-state" v-if="generating">
+                <div class="spinner"></div>
+                <p>正在生成图片...</p>
+              </div>
+
+              <div class="result-container" v-if="generatedImage && !generating">
+                <img :src="generatedImage" alt="Generated image" class="result-image">
+                <div class="result-actions">
+                  <button class="btn btn-secondary" @click="downloadImage">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    下载
+                  </button>
+                  <button class="btn btn-primary" @click="generateImage">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="1 4 1 10 7 10"/>
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                    重新生成
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="generate-section">
+              <button
+                class="generate-btn"
+                :disabled="!canGenerate || generating"
+                @click="generateImage"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" v-if="!generating">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                <div class="spinner-small" v-else></div>
+                {{ generating ? '生成中...' : '生成电商图' }}
+              </button>
+              <div class="generate-hint" v-if="generationHint">{{ generationHint }}</div>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
 
@@ -547,7 +759,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 
 // Types
 interface Product {
@@ -573,13 +785,47 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
+type TemplateCategory = 'scene' | 'angle' | 'style' | 'target';
+
+interface TemplateOption {
+  id: string;
+  label: string;
+}
+
 // Default template options
-const DEFAULT_TEMPLATES = {
-  scene: ['白色背景', '自然光桌面', '户外场景', '纯色背景', '生活场景'],
-  angle: ['正面', '45度侧面', '俯视', '平视', '特写'],
-  style: ['柔和光影', '高对比度', '自然光', '专业棚拍', '暖色调'],
-  target: ['主图', '详情页', '海报', '白底图', '场景图']
+const DEFAULT_TEMPLATES: Record<TemplateCategory, TemplateOption[]> = {
+  scene: [
+    { id: 'scene-white', label: '白色背景' },
+    { id: 'scene-natural-table', label: '自然光桌面' },
+    { id: 'scene-outdoor', label: '户外场景' },
+    { id: 'scene-solid', label: '纯色背景' },
+    { id: 'scene-life', label: '生活场景' }
+  ],
+  angle: [
+    { id: 'angle-front', label: '正面' },
+    { id: 'angle-45', label: '45度侧面' },
+    { id: 'angle-top', label: '俯视' },
+    { id: 'angle-eye', label: '平视' },
+    { id: 'angle-close', label: '特写' }
+  ],
+  style: [
+    { id: 'style-soft', label: '柔和光影' },
+    { id: 'style-contrast', label: '高对比度' },
+    { id: 'style-natural', label: '自然光' },
+    { id: 'style-studio', label: '专业棚拍' },
+    { id: 'style-warm', label: '暖色调' }
+  ],
+  target: [
+    { id: 'target-main', label: '主图' },
+    { id: 'target-detail', label: '详情页' },
+    { id: 'target-poster', label: '海报' },
+    { id: 'target-white', label: '白底图' },
+    { id: 'target-scene', label: '场景图' }
+  ]
 };
+
+// Default prompt template with variable placeholders
+const DEFAULT_PROMPT_TEMPLATE = `{{product_name}}{{dimensions|}}，{{features|}}{{characteristics|}}，{{scene|}}，{{angle|}}，{{style|}}，{{target|}}，高清产品摄影`;
 
 // State
 const showSettings = ref(false);
@@ -625,10 +871,10 @@ const fieldToggles = reactive({
 
 // Templates
 const templates = reactive({
-  scene: [...DEFAULT_TEMPLATES.scene],
-  angle: [...DEFAULT_TEMPLATES.angle],
-  style: [...DEFAULT_TEMPLATES.style],
-  target: [...DEFAULT_TEMPLATES.target]
+  scene: DEFAULT_TEMPLATES.scene.map((option) => ({ ...option })),
+  angle: DEFAULT_TEMPLATES.angle.map((option) => ({ ...option })),
+  style: DEFAULT_TEMPLATES.style.map((option) => ({ ...option })),
+  target: DEFAULT_TEMPLATES.target.map((option) => ({ ...option }))
 });
 
 const selectedTemplates = reactive({
@@ -639,9 +885,12 @@ const selectedTemplates = reactive({
 });
 
 const editingOption = reactive({
-  category: '' as string,
-  index: -1
+  category: '' as TemplateCategory | '',
+  id: ''
 });
+
+// Prompt Template
+const promptTemplate = ref(DEFAULT_PROMPT_TEMPLATE);
 
 // Generation
 const generating = ref(false);
@@ -652,54 +901,119 @@ const toasts = ref<Toast[]>([]);
 // Computed
 const totalPages = computed(() => Math.ceil(totalProducts.value / pageSize));
 
+function generateOptionId(category: TemplateCategory): string {
+  if (globalThis.crypto && 'randomUUID' in globalThis.crypto) {
+    return `${category}-${globalThis.crypto.randomUUID()}`;
+  }
+  return `${category}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function splitLines(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function joinTokens(tokens: string[]): string {
+  return tokens.filter(Boolean).join('、');
+}
+
+function getSelectedLabels(category: TemplateCategory): string[] {
+  const selected = new Set(selectedTemplates[category]);
+  return templates[category]
+    .filter((option) => selected.has(option.id))
+    .map((option) => option.label.trim())
+    .filter(Boolean);
+}
+
+function isEditingOption(category: TemplateCategory, optionId: string): boolean {
+  return editingOption.category === category && editingOption.id === optionId;
+}
+
+const selectedLabels = computed(() => ({
+  scene: getSelectedLabels('scene'),
+  angle: getSelectedLabels('angle'),
+  style: getSelectedLabels('style'),
+  target: getSelectedLabels('target')
+}));
+
+const productTokens = computed(() => {
+  const tokens: string[] = [];
+  const name = editableProduct.name.trim();
+  const dimensions = editableProduct.dimensions.trim();
+
+  if (fieldToggles.name && name) tokens.push(name);
+  if (fieldToggles.dimensions && dimensions) tokens.push(dimensions);
+  if (fieldToggles.features) tokens.push(...splitLines(editableProduct.featuresText));
+  if (fieldToggles.characteristics) tokens.push(...splitLines(editableProduct.characteristicsText));
+
+  return tokens;
+});
+
+const promptSegments = computed(() => ({
+  product: productTokens.value,
+  scene: selectedLabels.value.scene,
+  angle: selectedLabels.value.angle,
+  style: selectedLabels.value.style,
+  target: selectedLabels.value.target
+}));
+
+// Get variable values for template
+const variableValues = computed(() => {
+  const featuresTokens = fieldToggles.features ? splitLines(editableProduct.featuresText) : [];
+  const characteristicsTokens = fieldToggles.characteristics ? splitLines(editableProduct.characteristicsText) : [];
+
+  return {
+    product_name: fieldToggles.name ? editableProduct.name.trim() : '',
+    dimensions: fieldToggles.dimensions ? editableProduct.dimensions.trim() : '',
+    features: joinTokens(featuresTokens),
+    characteristics: joinTokens(characteristicsTokens),
+    scene: joinTokens(selectedLabels.value.scene),
+    angle: joinTokens(selectedLabels.value.angle),
+    style: joinTokens(selectedLabels.value.style),
+    target: joinTokens(selectedLabels.value.target)
+  };
+});
+
+// Available variables for reference
+const availableVariables = computed(() => {
+  const vals = variableValues.value;
+  return [
+    { name: 'product_name', description: '产品名称', currentValue: vals.product_name },
+    { name: 'dimensions', description: '尺寸规格', currentValue: vals.dimensions },
+    { name: 'features', description: '功能特征（以、分隔）', currentValue: vals.features },
+    { name: 'characteristics', description: '产品特点（以、分隔）', currentValue: vals.characteristics },
+    { name: 'scene', description: '场景选择', currentValue: vals.scene },
+    { name: 'angle', description: '拍摄角度', currentValue: vals.angle },
+    { name: 'style', description: '风格/光影', currentValue: vals.style },
+    { name: 'target', description: '生成目标', currentValue: vals.target }
+  ];
+});
+
+// Parse template and replace variables
+function parseTemplate(template: string, values: Record<string, string>): string {
+  // Match {{variable}} or {{variable|default}}
+  return template.replace(/\{\{(\w+)(?:\|([^}]*))?\}\}/g, (match, varName, defaultValue) => {
+    const value = values[varName];
+    if (value && value.trim()) {
+      return value;
+    }
+    // Use default value if provided, otherwise empty string
+    return defaultValue !== undefined ? defaultValue : '';
+  })
+  // Clean up multiple consecutive separators (，、)
+  .replace(/[，、]{2,}/g, '，')
+  // Clean up leading/trailing separators
+  .replace(/^[，、\s]+/, '')
+  .replace(/[，、\s]+$/, '')
+  // Clean up spaces around separators
+  .replace(/\s*[，、]\s*/g, '，');
+}
+
 const composedPrompt = computed(() => {
-  const parts: string[] = [];
-
-  // Product info
-  if (selectedProduct.value) {
-    if (fieldToggles.name && editableProduct.name) {
-      parts.push(editableProduct.name);
-    }
-    if (fieldToggles.dimensions && editableProduct.dimensions) {
-      parts.push(editableProduct.dimensions);
-    }
-    if (fieldToggles.features && editableProduct.featuresText) {
-      const features = editableProduct.featuresText.split('\n').filter(f => f.trim());
-      if (features.length > 0) {
-        parts.push(features.join('、'));
-      }
-    }
-    if (fieldToggles.characteristics && editableProduct.characteristicsText) {
-      const chars = editableProduct.characteristicsText.split('\n').filter(c => c.trim());
-      if (chars.length > 0) {
-        parts.push(chars.join('、'));
-      }
-    }
-  }
-
-  // Template selections
-  if (selectedTemplates.scene.length > 0) {
-    parts.push(selectedTemplates.scene.join('、'));
-  }
-  if (selectedTemplates.angle.length > 0) {
-    parts.push(selectedTemplates.angle.join('、'));
-  }
-  if (selectedTemplates.style.length > 0) {
-    parts.push(selectedTemplates.style.join('、'));
-  }
-  if (selectedTemplates.target.length > 0) {
-    const targetDesc = selectedTemplates.target.map(t => {
-      if (t === '主图') return '电商主图风格';
-      if (t === '详情页') return '详情页展示风格';
-      if (t === '海报') return '促销海报风格';
-      if (t === '白底图') return '纯白背景产品图';
-      if (t === '场景图') return '场景化展示';
-      return t;
-    });
-    parts.push(targetDesc.join('、'));
-  }
-
-  return parts.join('，');
+  if (!selectedProduct.value) return '';
+  return parseTemplate(promptTemplate.value, variableValues.value);
 });
 
 const canGenerate = computed(() => {
@@ -708,10 +1022,11 @@ const canGenerate = computed(() => {
          composedPrompt.value.length > 0;
 });
 
-const generateHint = computed(() => {
-  if (!selectedProduct.value) return '请先选择一个产品';
+const generationHint = computed(() => {
+  if (generating.value) return '正在生成图片...';
+  if (!selectedProduct.value) return '请先在左侧选择产品';
   if (selectedImages.value.length === 0) return '请选择至少一张参考图片';
-  if (!composedPrompt.value) return '请选择模板选项或填写产品信息';
+  if (!composedPrompt.value) return '请完善模板选项或产品信息';
   return '';
 });
 
@@ -853,84 +1168,183 @@ function toggleImageSelection(imageId: string) {
   }
 }
 
-function toggleOption(category: keyof typeof selectedTemplates, option: string) {
-  const list = selectedTemplates[category];
-  const index = list.indexOf(option);
-  if (index === -1) {
-    list.push(option);
-  } else {
-    list.splice(index, 1);
-  }
-  saveTemplates();
+function findOption(category: TemplateCategory, optionId: string): TemplateOption | null {
+  return templates[category].find((option) => option.id === optionId) ?? null;
 }
 
-function addOption(category: keyof typeof templates) {
-  const newOption = '新选项';
-  templates[category].push(newOption);
-  saveTemplates();
-
-  // Start editing immediately
+function focusOptionInput(optionId: string) {
   nextTick(() => {
-    startEditing(category, templates[category].length - 1);
+    const input = document.querySelector<HTMLInputElement>(`.option-edit-input[data-option-id="${optionId}"]`);
+    if (input) {
+      input.focus();
+      input.select();
+    }
   });
 }
 
-function removeOption(category: keyof typeof templates, index: number) {
-  const option = templates[category][index];
+function toggleOption(category: TemplateCategory, optionId: string) {
+  const list = selectedTemplates[category];
+  const index = list.indexOf(optionId);
+  if (index === -1) {
+    list.push(optionId);
+  } else {
+    list.splice(index, 1);
+  }
+}
+
+function addOption(category: TemplateCategory) {
+  const newOption = {
+    id: generateOptionId(category),
+    label: '新选项'
+  };
+  templates[category].push(newOption);
+  saveTemplates();
+  startEditing(category, newOption.id);
+}
+
+function removeOption(category: TemplateCategory, optionId: string) {
+  const index = templates[category].findIndex((option) => option.id === optionId);
+  if (index === -1) return;
   templates[category].splice(index, 1);
 
-  // Remove from selected if present
-  const selectedIndex = selectedTemplates[category].indexOf(option);
+  const selectedIndex = selectedTemplates[category].indexOf(optionId);
   if (selectedIndex !== -1) {
     selectedTemplates[category].splice(selectedIndex, 1);
   }
 
+  if (editingOption.category === category && editingOption.id === optionId) {
+    editingOption.category = '';
+    editingOption.id = '';
+  }
+
   saveTemplates();
 }
 
-function startEditing(category: string, index: number) {
+function startEditing(category: TemplateCategory, optionId: string) {
   editingOption.category = category;
-  editingOption.index = index;
+  editingOption.id = optionId;
+  focusOptionInput(optionId);
 }
 
 function finishEditing() {
+  if (!editingOption.category || !editingOption.id) return;
+  const category = editingOption.category;
+  const optionId = editingOption.id;
   editingOption.category = '';
-  editingOption.index = -1;
+  editingOption.id = '';
+
+  const option = findOption(category, optionId);
+  if (!option) return;
+
+  const trimmed = option.label.trim();
+  if (!trimmed) {
+    removeOption(category, optionId);
+    return;
+  }
+
+  option.label = trimmed;
   saveTemplates();
 }
 
 function resetTemplates() {
-  templates.scene = [...DEFAULT_TEMPLATES.scene];
-  templates.angle = [...DEFAULT_TEMPLATES.angle];
-  templates.style = [...DEFAULT_TEMPLATES.style];
-  templates.target = [...DEFAULT_TEMPLATES.target];
+  templates.scene = DEFAULT_TEMPLATES.scene.map((option) => ({ ...option }));
+  templates.angle = DEFAULT_TEMPLATES.angle.map((option) => ({ ...option }));
+  templates.style = DEFAULT_TEMPLATES.style.map((option) => ({ ...option }));
+  templates.target = DEFAULT_TEMPLATES.target.map((option) => ({ ...option }));
 
   selectedTemplates.scene = [];
   selectedTemplates.angle = [];
   selectedTemplates.style = [];
   selectedTemplates.target = [];
+  editingOption.category = '';
+  editingOption.id = '';
 
   localStorage.removeItem('ecommerce-image-templates');
   showToast('模板已重置为默认值', 'success');
 }
 
 function saveTemplates() {
-  localStorage.setItem('ecommerce-image-templates', JSON.stringify(templates));
+  const payload = {
+    version: 2,
+    templates: {
+      scene: templates.scene.map((option) => ({ id: option.id, label: option.label })),
+      angle: templates.angle.map((option) => ({ id: option.id, label: option.label })),
+      style: templates.style.map((option) => ({ id: option.id, label: option.label })),
+      target: templates.target.map((option) => ({ id: option.id, label: option.label }))
+    }
+  };
+  localStorage.setItem('ecommerce-image-templates', JSON.stringify(payload));
+}
+
+function normalizeTemplateList(raw: unknown, category: TemplateCategory): TemplateOption[] | null {
+  if (!Array.isArray(raw)) return null;
+  const options: TemplateOption[] = [];
+  for (const entry of raw) {
+    if (typeof entry === 'string') {
+      const label = entry.trim();
+      if (label) options.push({ id: generateOptionId(category), label });
+      continue;
+    }
+    if (entry && typeof entry === 'object') {
+      const label = typeof (entry as { label?: unknown }).label === 'string'
+        ? (entry as { label: string }).label.trim()
+        : '';
+      if (!label) continue;
+      const id = typeof (entry as { id?: unknown }).id === 'string'
+        ? String((entry as { id: string }).id)
+        : generateOptionId(category);
+      options.push({ id, label });
+    }
+  }
+  return options.length ? options : null;
 }
 
 function loadTemplates() {
   const saved = localStorage.getItem('ecommerce-image-templates');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (parsed.scene) templates.scene = parsed.scene;
-      if (parsed.angle) templates.angle = parsed.angle;
-      if (parsed.style) templates.style = parsed.style;
-      if (parsed.target) templates.target = parsed.target;
-    } catch (e) {
-      // Ignore parse errors
-    }
+  if (!saved) return;
+  try {
+    const parsed = JSON.parse(saved);
+    const source = parsed?.templates || parsed;
+    const scene = normalizeTemplateList(source?.scene, 'scene');
+    const angle = normalizeTemplateList(source?.angle, 'angle');
+    const style = normalizeTemplateList(source?.style, 'style');
+    const target = normalizeTemplateList(source?.target, 'target');
+    if (scene) templates.scene = scene;
+    if (angle) templates.angle = angle;
+    if (style) templates.style = style;
+    if (target) templates.target = target;
+  } catch {
+    // Ignore parse errors
   }
+}
+
+// Prompt Template functions
+function savePromptTemplate() {
+  localStorage.setItem('ecommerce-image-prompt-template', promptTemplate.value);
+}
+
+function loadPromptTemplate() {
+  const saved = localStorage.getItem('ecommerce-image-prompt-template');
+  if (saved) {
+    promptTemplate.value = saved;
+  }
+}
+
+function resetPromptTemplate() {
+  promptTemplate.value = DEFAULT_PROMPT_TEMPLATE;
+  localStorage.removeItem('ecommerce-image-prompt-template');
+  showToast('提示词模板已重置为默认值', 'success');
+}
+
+function insertVariable(varName: string) {
+  promptTemplate.value += `{{${varName}}}`;
+  savePromptTemplate();
+}
+
+function truncateValue(value: string, maxLength: number = 20): string {
+  if (!value) return '';
+  if (value.length <= maxLength) return value;
+  return value.substring(0, maxLength) + '...';
 }
 
 function saveApiConfig() {
@@ -963,7 +1377,7 @@ async function copyPrompt() {
 
   try {
     await navigator.clipboard.writeText(composedPrompt.value);
-    showToast('Prompt 已复制到剪贴板', 'success');
+    showToast('提示词已复制到剪贴板', 'success');
   } catch (e) {
     showToast('复制失败', 'error');
   }
@@ -1069,6 +1483,7 @@ function showToast(message: string, type: Toast['type'] = 'info') {
 // Lifecycle
 onMounted(() => {
   loadTemplates();
+  loadPromptTemplate();
   loadApiConfig();
   fetchProducts();
 });

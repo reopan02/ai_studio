@@ -1,5 +1,5 @@
 import { createApp } from 'vue';
 import ProductsPage from './products-page.vue';
-import '@/styles/app-static.css';
+import '@/styles/image-editor.css';
 
 createApp(ProductsPage).mount('#app');

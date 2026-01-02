@@ -1,51 +1,53 @@
 <template>
   <div class="products-page">
-    <div class="container">
-      <header class="products-header">
-        <div class="header-left">
-          <a href="/" class="btn btn-secondary" style="text-decoration: none">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            返回首页
-          </a>
-          <div>
-            <h1 style="margin: 0; text-align: left">产品库</h1>
-            <div class="meta-text">上传产品图片，AI识别后可手动修正</div>
-          </div>
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
         </div>
-        <div class="header-actions">
-          <a href="/video" class="btn btn-secondary" style="text-decoration: none">视频</a>
-          <a href="/image" class="btn btn-secondary" style="text-decoration: none">图片</a>
-          <a href="/storage" class="btn btn-secondary" style="text-decoration: none">存储</a>
-          <a v-if="isAdmin" href="/admin" class="btn btn-secondary" style="text-decoration: none">Admin</a>
-        </div>
-      </header>
+        <span>产品库</span>
+      </div>
+      <div class="header-actions">
+        <a href="/" class="btn btn-secondary" style="text-decoration: none; display: flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          返回主页面
+        </a>
+        <a href="/video" class="btn btn-secondary" style="text-decoration: none">视频生成</a>
+        <a href="/image" class="btn btn-secondary" style="text-decoration: none">图像处理</a>
+        <a href="/storage" class="btn btn-secondary" style="text-decoration: none">存储库</a>
+        <a v-if="isAdmin" href="/admin" class="btn btn-secondary" style="text-decoration: none">Admin</a>
+      </div>
+    </header>
 
-      <section v-if="errorMessage" class="card error-banner" style="margin-bottom: 18px">
-        {{ errorMessage }}
-      </section>
-
-      <section v-if="successMessage" class="card success-banner" style="margin-bottom: 18px">
-        {{ successMessage }}
-      </section>
-
-      <section class="card">
-        <div class="card-title-row">
-          <h2 style="margin: 0">{{ isEditing ? '编辑产品信息' : '上传新产品' }}</h2>
-          <div class="card-actions">
-            <button v-if="isEditing" class="btn btn-secondary btn-sm" type="button" @click="resetForm">
-              取消编辑
+    <div class="main-container">
+      <aside class="sidebar">
+        <section class="sidebar-section">
+          <div class="section-header">
+            <div class="section-title section-title-lg">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              {{ isEditing ? '编辑产品' : '创建产品' }}
+            </div>
+            <button v-if="isEditing" class="btn btn-ghost btn-sm" type="button" @click="resetForm">
+              退出编辑
             </button>
           </div>
-        </div>
+          <div class="section-subtitle">上传产品图片，AI 自动识别结构化信息，支持多图管理</div>
 
-        <div class="form-grid image-grid" style="margin-top: 16px">
           <div class="form-group">
-            <label>产品图片</label>
+            <label class="form-label">产品图片</label>
             <div
-              class="dropzone"
-              :class="{ 'is-dragover': isDragOver, 'is-loading': saving || prefilling, 'is-disabled': isEditing }"
+              class="upload-area"
+              :class="{ 'drag-over': isDragOver, 'is-loading': saving || prefilling, 'is-disabled': isEditing }"
               @click.stop="triggerFilePicker"
               @dragenter.prevent="handleDragEnter"
               @dragover.prevent="handleDragOver"
@@ -60,40 +62,34 @@
                 :disabled="isEditing"
                 @change="handleFileChange"
               />
-              <div class="dropzone-inner">
-                <div class="dropzone-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                </div>
-                <div>
-                  <div class="dropzone-title">拖拽或点击上传多张产品图</div>
-                  <div class="dropzone-subtitle">主图用于 AI 识别与列表展示</div>
-                </div>
-                <div class="dropzone-actions">
-                  <button class="btn btn-secondary btn-sm" type="button" :disabled="isEditing" @click.stop="triggerFilePicker">
-                    选择图片
-                  </button>
-                  <button
-                    v-if="selectedImages.length > 0"
-                    class="btn btn-ghost btn-sm"
-                    type="button"
-                    @click.stop="clearSelectedImages"
-                  >
-                    清空
-                  </button>
-                </div>
-              </div>
+              <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <p class="upload-text"><strong>拖拽或点击上传多张产品图</strong></p>
+              <p class="upload-hint">主图用于 AI 识别与列表展示</p>
             </div>
-            <div class="form-hint">
+            <div class="upload-actions">
+              <button class="btn btn-secondary btn-sm" type="button" :disabled="isEditing" @click.stop="triggerFilePicker">
+                选择图片
+              </button>
+              <button
+                v-if="selectedImages.length > 0"
+                class="btn btn-ghost btn-sm"
+                type="button"
+                @click.stop="clearSelectedImages"
+              >
+                清空
+              </button>
+            </div>
+            <!-- <div class="form-hint">
               支持 JPG/PNG；可一次上传多张产品图，主图用于 AI 识别（大图会自动压缩用于识别，不影响原图存储）
-            </div>
+            </div> -->
           </div>
 
           <div class="form-group">
-            <label>主图预览</label>
+            <label class="form-label">主图预览</label>
             <div class="preview-box">
               <img v-if="primaryPreviewUrl" :src="primaryPreviewUrl" alt="preview" class="preview-image" />
               <div v-else class="preview-placeholder">未选择图片</div>
@@ -102,174 +98,206 @@
               AI 置信度：{{ Math.round(recognitionConfidence * 100) }}%
             </div>
           </div>
-        </div>
 
-        <div v-if="displayImageCount > 0" class="image-meta">
-          <span class="meta-text">已选择 {{ displayImageCount }} 张图片</span>
-          <span v-if="isEditing && selectedImages.length === 0" class="meta-text">编辑模式下图片不可替换</span>
-        </div>
-
-        <div v-if="selectedImages.length > 0" class="image-preview-grid product-image-grid">
-          <div
-            v-for="(img, index) in selectedImages"
-            :key="img.id"
-            class="preview-item"
-            :class="{ 'is-primary': index === primaryIndex }"
-          >
-            <img :src="img.url" :alt="`image-${index + 1}`" class="preview-img" />
-            <div v-if="index === primaryIndex" class="preview-badge">主图</div>
-            <div class="preview-actions">
-              <button
-                v-if="index !== primaryIndex"
-                class="preview-action-btn"
-                type="button"
-                @click="setPrimary(index)"
-              >
-                设为主图
-              </button>
-              <button class="preview-action-btn danger" type="button" @click="removeSelectedImage(index)">移除</button>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="existingImages.length > 0" class="image-preview-grid product-image-grid">
-          <div
-            v-for="img in existingImages"
-            :key="img.id"
-            class="preview-item"
-            :class="{ 'is-primary': img.is_primary }"
-          >
-            <img :src="img.image_url" :alt="img.id" class="preview-img" />
-            <div v-if="img.is_primary" class="preview-badge">主图</div>
-          </div>
-        </div>
-
-        <div class="form-grid" style="margin-top: 8px">
-          <div class="form-group">
-            <label>产品名称</label>
-            <input v-model="form.name" type="text" maxlength="200" placeholder="例如：保温杯" />
-          </div>
-          <div class="form-group">
-            <label>尺寸规格</label>
-            <input v-model="form.dimensions" type="text" maxlength="100" placeholder="例如：350ml" />
-          </div>
-        </div>
-
-        <div class="form-group" style="margin-top: 8px">
-          <label>无结构化信息（可选）</label>
-          <textarea
-            v-model="form.rawText"
-            rows="3"
-            :disabled="isEditing"
-            placeholder="粘贴产品信息，例如从商品页面复制的描述文本，AI会结合图片提取结构化信息"></textarea>
-          <div class="form-hint">
-            提供此信息可帮助AI更准确地识别产品属性
-          </div>
-        </div>
-
-        <div class="form-grid" style="margin-top: 8px">
-          <div class="form-group">
-            <label>功能特征（每行一个）</label>
-            <textarea v-model="form.featuresText" rows="5" placeholder="例如：&#10;24小时保温&#10;不锈钢内胆"></textarea>
-          </div>
-          <div class="form-group">
-            <label>产品特点（每行一个）</label>
-            <textarea v-model="form.characteristicsText" rows="5" placeholder="例如：&#10;便携&#10;大容量"></textarea>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button
-            v-if="!isEditing"
-            class="btn btn-secondary"
-            type="button"
-            :disabled="saving || prefilling"
-            @click="aiPrefillProduct"
-          >
-            {{ prefilling ? 'AI整理中...' : 'AI整理预填' }}
-          </button>
-          <button v-if="!isEditing" class="btn btn-primary" type="button" :disabled="saving || prefilling" @click="createProduct">
-            {{ saving ? '保存中...' : '保存产品' }}
-          </button>
-          <button v-else class="btn btn-primary" type="button" :disabled="saving" @click="updateProduct">
-            {{ saving ? '保存中...' : '保存修改' }}
-          </button>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="card-title-row">
-          <h2 style="margin: 0">我的产品</h2>
-          <div class="card-actions">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="搜索名称..."
-              style="width: 260px; max-width: 100%"
-              @input="debouncedSearch"
-            />
-          </div>
-        </div>
-
-        <div v-if="loading" class="loading">加载中...</div>
-
-        <div v-else>
-          <div v-if="products.length === 0" class="empty-state">暂无产品</div>
-
-          <div v-else class="products-grid">
-            <div v-for="p in products" :key="p.id" class="product-card">
-              <div class="product-thumb">
-                <img :src="p.original_image_url" :alt="p.name" />
-                <span v-if="p.image_count > 1" class="image-count-badge">{{ p.image_count }} 张</span>
-              </div>
-              <div class="product-body">
-                <div class="product-title">{{ p.name }}</div>
-                <div class="product-meta">
-                  <span v-if="p.dimensions">{{ p.dimensions }}</span>
-                  <span v-if="p.image_count > 1">· {{ p.image_count }} 张</span>
-                  <span v-if="p.created_at">· {{ formatDate(p.created_at) }}</span>
-                </div>
-                <div class="product-meta" v-if="p.recognition_confidence !== null">
-                  AI：{{ Math.round((p.recognition_confidence ?? 0) * 100) }}%
-                </div>
-                <div class="product-actions">
-                  <button class="btn btn-secondary btn-sm" type="button" :disabled="saving" @click="editProduct(p.id)">
-                    编辑
-                  </button>
-                  <button
-                    class="btn btn-secondary btn-sm danger"
-                    type="button"
-                    :disabled="saving"
-                    @click="deleteProduct(p.id)"
-                  >
-                    删除
-                  </button>
-                </div>
-              </div>
-            </div>
+          <div v-if="displayImageCount > 0" class="image-meta">
+            <span class="meta-text">已选择 {{ displayImageCount }} 张图片</span>
+            <span v-if="isEditing && selectedImages.length === 0" class="meta-text">编辑模式下图片不可替换</span>
           </div>
 
-          <div v-if="total > limit" class="pagination">
-            <button class="btn btn-secondary btn-sm" type="button" :disabled="offset === 0 || saving" @click="prevPage">
-              上一页
-            </button>
-            <span class="meta-text">
-              第 {{ Math.floor(offset / limit) + 1 }} / {{ Math.max(1, Math.ceil(total / limit)) }} 页（{{ total }} 条）
-            </span>
-            <button
-              class="btn btn-secondary btn-sm"
-              type="button"
-              :disabled="offset + limit >= total || saving"
-              @click="nextPage"
+          <div v-if="selectedImages.length > 0" class="image-preview-grid product-image-grid">
+            <div
+              v-for="(img, index) in selectedImages"
+              :key="img.id"
+              class="preview-item"
+              :class="{ 'is-primary': index === primaryIndex }"
             >
-              下一页
+              <img :src="img.url" :alt="`image-${index + 1}`" class="preview-img" />
+              <div v-if="index === primaryIndex" class="preview-badge">主图</div>
+              <div class="preview-actions">
+                <button
+                  v-if="index !== primaryIndex"
+                  class="preview-action-btn"
+                  type="button"
+                  @click="setPrimary(index)"
+                >
+                  设为主图
+                </button>
+                <button class="preview-action-btn danger" type="button" @click="removeSelectedImage(index)">移除</button>
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="existingImages.length > 0" class="image-preview-grid product-image-grid">
+            <div
+              v-for="img in existingImages"
+              :key="img.id"
+              class="preview-item"
+              :class="{ 'is-primary': img.is_primary }"
+            >
+              <img :src="img.image_url" :alt="img.id" class="preview-img" />
+              <div v-if="img.is_primary" class="preview-badge">主图</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">产品名称</label>
+            <input v-model="form.name" class="form-input" type="text" maxlength="200" placeholder="例如：保温杯" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">尺寸规格</label>
+            <input v-model="form.dimensions" class="form-input" type="text" maxlength="100" placeholder="例如：350ml" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">无结构化信息（可选）</label>
+            <textarea
+              v-model="form.rawText"
+              rows="3"
+              class="form-input"
+              :disabled="isEditing"
+              placeholder="粘贴产品信息，例如从商品页面复制的描述文本，AI会结合图片提取结构化信息"
+            ></textarea>
+            <!-- <div class="form-hint">
+              提供此信息可帮助AI更准确地识别产品属性
+            </div> -->
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">功能特征（每行一个）</label>
+            <textarea
+              v-model="form.featuresText"
+              rows="4"
+              class="form-input"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">产品特点（每行一个）</label>
+            <textarea
+              v-model="form.characteristicsText"
+              rows="4"
+              class="form-input"
+              placeholder="例如：&#10;便携&#10;大容量"
+            ></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button
+              v-if="!isEditing"
+              class="btn btn-secondary"
+              type="button"
+              :disabled="saving || prefilling"
+              @click="aiPrefillProduct"
+            >
+              {{ prefilling ? 'AI整理中...' : 'AI整理预填' }}
+            </button>
+            <button v-if="!isEditing" class="btn btn-primary" type="button" :disabled="saving || prefilling" @click="createProduct">
+              {{ saving ? '保存中...' : '保存产品' }}
+            </button>
+            <button v-else class="btn btn-primary" type="button" :disabled="saving" @click="updateProduct">
+              {{ saving ? '保存中...' : '保存修改' }}
             </button>
           </div>
+        </section>
+      </aside>
+
+      <main class="main-content">
+        <div class="content-scroll">
+          <section v-if="errorMessage" class="notice-banner error">
+            {{ errorMessage }}
+          </section>
+
+          <section v-if="successMessage" class="notice-banner success">
+            {{ successMessage }}
+          </section>
+
+          <section class="content-section">
+            <div class="content-header">
+              <div class="section-title section-title-lg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 3h7v7H3z" />
+                  <path d="M14 3h7v7h-7z" />
+                  <path d="M3 14h7v7H3z" />
+                  <path d="M14 14h7v7h-7z" />
+                </svg>
+                产品列表
+              </div>
+              <div class="search-wrapper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  v-model="searchQuery"
+                  class="form-input"
+                  type="text"
+                  placeholder="搜索产品名称..."
+                  @input="debouncedSearch"
+                />
+              </div>
+            </div>
+
+            <div v-if="loading" class="loading-state">加载中...</div>
+
+            <div v-else>
+              <div v-if="products.length === 0" class="empty-state">暂无产品</div>
+
+              <div v-else class="products-grid">
+                <div v-for="p in products" :key="p.id" class="product-card">
+                  <div class="product-thumb">
+                    <img :src="p.original_image_url" :alt="p.name" />
+                    <span v-if="p.image_count > 1" class="image-count-badge">{{ p.image_count }} 张</span>
+                  </div>
+                  <div class="product-body">
+                    <div class="product-title">{{ p.name }}</div>
+                    <div class="product-meta">
+                      <span v-if="p.dimensions">{{ p.dimensions }}</span>
+                      <span v-if="p.image_count > 1">· {{ p.image_count }} 张</span>
+                      <span v-if="p.created_at">· {{ formatDate(p.created_at) }}</span>
+                    </div>
+                    <div class="product-meta" v-if="p.recognition_confidence !== null">
+                      AI：{{ Math.round((p.recognition_confidence ?? 0) * 100) }}%
+                    </div>
+                    <div class="product-actions">
+                      <button class="btn btn-secondary btn-sm" type="button" :disabled="saving" @click="editProduct(p.id)">
+                        编辑
+                      </button>
+                      <button
+                        class="btn btn-ghost btn-sm danger"
+                        type="button"
+                        :disabled="saving"
+                        @click="deleteProduct(p.id)"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="total > limit" class="pagination">
+                <button class="btn btn-secondary btn-sm" type="button" :disabled="offset === 0 || saving" @click="prevPage">
+                  上一页
+                </button>
+                <span class="meta-text">
+                  第 {{ Math.floor(offset / limit) + 1 }} / {{ Math.max(1, Math.ceil(total / limit)) }} 页（{{ total }} 条）
+                </span>
+                <button
+                  class="btn btn-secondary btn-sm"
+                  type="button"
+                  :disabled="offset + limit >= total || saving"
+                  @click="nextPage"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
-      </section>
+      </main>
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -828,95 +856,83 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.products-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 8px 0 20px;
-  flex-wrap: wrap;
+.products-page {
+  min-height: 100vh;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.meta-text {
-  color: var(--text-secondary);
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-.error-banner {
-  border: 1px solid rgba(255, 59, 48, 0.25);
-  background: rgba(255, 59, 48, 0.06);
-  color: #b42318;
-}
-
-.success-banner {
-  border: 1px solid rgba(52, 199, 89, 0.28);
-  background: rgba(52, 199, 89, 0.08);
-  color: #0f7a2a;
-}
-
-.card-title-row {
+.section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
-.card-actions {
+.section-title.section-title-lg {
+  font-size: 14px;
+  text-transform: none;
+  color: var(--text-primary);
+}
+
+.section-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.notice-banner {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: 16px 24px 0;
+  color: var(--text-primary);
+}
+
+.notice-banner.error {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.08);
+  color: #b42318;
+}
+
+.notice-banner.success {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.08);
+  color: #0f7a2a;
+}
+
+.upload-actions {
   display: flex;
   gap: 10px;
-  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
 }
 
-.form-actions {
-  margin-top: 14px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.image-grid {
-  align-items: start;
-}
-
-.dropzone {
-  position: relative;
-}
-
-.dropzone input[type='file'] {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.dropzone.is-disabled {
+.upload-area.is-disabled {
   opacity: 0.6;
   pointer-events: none;
 }
 
+.upload-area.is-loading {
+  opacity: 0.8;
+  pointer-events: none;
+}
+
 .preview-box {
-  border: 1px solid rgba(209, 209, 214, 0.65);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.03);
-  height: 220px;
+  background: var(--bg-tertiary);
+  height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .preview-image {
@@ -926,87 +942,157 @@ onMounted(async () => {
 }
 
 .preview-placeholder {
-  font-size: 13px;
-  color: var(--text-secondary);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.image-meta {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-text {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .product-image-grid {
-  margin-top: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .preview-item {
   position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
 }
 
 .preview-item.is-primary {
-  border-color: rgba(0, 113, 227, 0.55);
-  box-shadow: 0 6px 18px rgba(0, 113, 227, 0.18);
+  border-color: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.2);
+}
+
+.preview-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  display: block;
 }
 
 .preview-badge {
   position: absolute;
   left: 8px;
   top: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--accent-color);
-  border: 1px solid rgba(0, 113, 227, 0.25);
+  background: rgba(15, 23, 42, 0.72);
+  color: #fff;
   border-radius: 999px;
   padding: 2px 8px;
   font-size: 11px;
   font-weight: 600;
 }
 
+.preview-actions {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: var(--transition);
+}
+
+.preview-item:hover .preview-actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .preview-action-btn {
-  border: 1px solid rgba(209, 209, 214, 0.8);
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--text-primary);
+  border: none;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
   border-radius: 999px;
   padding: 4px 8px;
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: var(--transition);
 }
 
 .preview-action-btn:hover {
-  border-color: rgba(0, 113, 227, 0.45);
-  color: var(--accent-color);
-}
-
-.preview-action-btn.danger {
-  border-color: rgba(255, 59, 48, 0.35);
-  color: #b42318;
+  background: rgba(99, 102, 241, 0.9);
 }
 
 .preview-action-btn.danger:hover {
-  border-color: rgba(255, 59, 48, 0.6);
-  color: #d92d20;
+  background: var(--error);
 }
 
-.loading {
+.form-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.content-scroll {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.content-section {
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.content-section:last-child {
+  border-bottom: none;
+}
+
+.content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.content-header .search-wrapper {
+  margin-bottom: 0;
+  width: min(320px, 100%);
+}
+
+.loading-state {
   text-align: center;
-  padding: 20px 0;
-  color: var(--text-secondary);
+  padding: 24px 0;
+  color: var(--text-muted);
 }
 
 .empty-state {
   text-align: center;
-  padding: 30px 0;
-  color: var(--text-secondary);
+  padding: 32px 0;
+  color: var(--text-muted);
 }
 
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
-  margin-top: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .product-card {
-  background: #fff;
-  border: 1px solid rgba(209, 209, 214, 0.65);
-  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
 }
@@ -1014,7 +1100,7 @@ onMounted(async () => {
 .product-thumb {
   position: relative;
   height: 160px;
-  background: rgba(0, 0, 0, 0.03);
+  background: var(--bg-tertiary);
 }
 
 .product-thumb img {
@@ -1024,42 +1110,51 @@ onMounted(async () => {
   display: block;
 }
 
+.image-count-badge {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .product-body {
-  padding: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .product-title {
-  font-weight: 700;
   font-size: 14px;
-  line-height: 1.2;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .product-meta {
   font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.image-count-badge {
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  backdrop-filter: blur(4px);
+  color: var(--text-muted);
 }
 
 .product-actions {
   display: flex;
   gap: 8px;
-  margin-top: 4px;
   flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.product-actions .danger {
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: var(--error);
+}
+
+.product-actions .danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
 }
 
 .pagination {
@@ -1068,5 +1163,27 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1024px) {
+  .content-section {
+    padding: 20px;
+  }
+
+  .notice-banner {
+    margin: 16px 20px 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .content-section {
+    padding: 16px;
+  }
+
+  .products-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
+

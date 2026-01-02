@@ -130,6 +130,11 @@ async def ecommerce_image_page(user: User = Depends(get_current_user)):
     return FileResponse("app/static/ecommerce-image.html")
 
 
+@app.get("/image-generate")
+async def image_generate_page(user: User = Depends(get_current_user)):
+    return FileResponse("app/static/image-generate.html")
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}

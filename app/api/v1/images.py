@@ -160,6 +160,102 @@ async def images_edits_and_store(
     )
 
 
+@router.post("/images/generations", response_model=UserImageDetail, status_code=status.HTTP_201_CREATED)
+async def images_generations_and_store(
+    model: str = Form(...),
+    prompt: str = Form(...),
+    n: int = Form(default=1),
+    size: Optional[str] = Form(default=None),
+    response_format: Optional[str] = Form(default=None),
+    title: Optional[str] = Form(default=None),
+    x_api_key: Optional[str] = Header(default=None),
+    x_base_url: Optional[str] = Header(default=None),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Text-to-image generation endpoint following OpenAI DALL-E format."""
+    # Validate inputs
+    if not prompt or not prompt.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Prompt is required")
+    if len(prompt) > 1000:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Prompt must not exceed 1000 characters")
+    n = max(1, min(10, n))
+    valid_sizes = {"256x256", "512x512", "1024x1024"}
+    if size and size not in valid_sizes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid size. Must be one of: {', '.join(valid_sizes)}")
+
+    settings = get_settings()
+    api_key = (x_api_key or settings.API_KEY or "").strip()
+    if not api_key:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="API_KEY is not configured")
+
+    base_url = (x_base_url or settings.API_BASE_URL or "").strip() or None
+
+    try:
+        async with ImageEditsClient(api_key=api_key, base_url=base_url) as client:
+            provider_response = await client.images_generations(
+                model=model,
+                prompt=prompt,
+                n=n,
+                size=size,
+                response_format=response_format,
+            )
+    except httpx.HTTPStatusError as exc:
+        detail = exc.response.text if exc.response is not None else str(exc)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    request_dict = {
+        "model": model,
+        "prompt": prompt,
+        "n": n,
+        "size": size,
+        "response_format": response_format,
+        "provider": {"base_url": base_url or settings.API_BASE_URL},
+    }
+    response_dict: dict[str, Any] = provider_response if isinstance(provider_response, dict) else {"raw": provider_response}
+
+    try:
+        request_blob = encrypt_for_user(user_id=user.id, plaintext=_json_dumps(request_dict))
+        response_blob = encrypt_for_user(user_id=user.id, plaintext=_json_dumps(response_dict))
+    except EncryptionError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+    size_bytes = len(request_blob) + len(response_blob)
+    if user.storage_used_bytes + size_bytes > user.storage_quota_bytes:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Storage quota exceeded")
+
+    record = UserImage(
+        user_id=user.id,
+        title=title,
+        model=str(model),
+        prompt=str(prompt),
+        status="completed",
+        image_url=_extract_first_image_url(provider_response),
+        request_encrypted=request_blob,
+        response_encrypted=response_blob,
+        size_bytes=size_bytes,
+    )
+
+    try:
+        user.storage_used_bytes += size_bytes
+        db.add(record)
+        db.add(user)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("Failed to persist generated image for user_id=%s", user.id)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save image record")
+
+    await db.refresh(record)
+    return UserImageDetail(
+        **UserImageSummary.model_validate(record).model_dump(),
+        request=request_dict,
+        response=response_dict,
+    )
+
+
 @router.get("/images", response_model=list[UserImageSummary])
 async def list_images(
     user: User = Depends(get_current_user),

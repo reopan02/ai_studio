@@ -45,6 +45,14 @@
         <div class="portal-desc">多图参考的图像编辑（nano-banana）</div>
       </a>
 
+      <a href="/image-generate" class="card portal-card">
+        <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <div class="portal-title">图像生成</div>
+        <div class="portal-desc">文生图，根据文字描述生成图像</div>
+      </a>
+
       <a href="/products" class="card portal-card">
         <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"></path>

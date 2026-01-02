@@ -447,9 +447,31 @@ textarea.form-input {
 
 .panel-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
     margin-bottom: 16px;
+}
+
+.panel-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.step-indicator {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--primary), #a855f7);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .panel-header h3 {
@@ -457,8 +479,23 @@ textarea.form-input {
     font-weight: 600;
 }
 
+.panel-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
 .panel-hint {
     font-size: 12px;
+    color: var(--text-muted);
+}
+
+.panel-empty {
+    border: 1px dashed var(--border);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    font-size: 13px;
     color: var(--text-muted);
 }
 
@@ -498,6 +535,12 @@ textarea.form-input {
 
 .template-module:last-child {
     margin-bottom: 0;
+}
+
+.template-modules {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 .module-header {
@@ -548,6 +591,12 @@ textarea.form-input {
     color: var(--primary);
 }
 
+.option-chip.editing {
+    border-color: var(--primary);
+    background: var(--bg-secondary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
 .option-chip span {
     cursor: pointer;
 }
@@ -556,7 +605,8 @@ textarea.form-input {
     border: none;
     background: transparent;
     font-size: 13px;
-    width: 80px;
+    min-width: 90px;
+    max-width: 180px;
     outline: none;
 }
 
@@ -591,16 +641,204 @@ textarea.form-input {
     background: var(--bg-tertiary);
 }
 
-.prompt-preview {
+.prompt-structured {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    padding: 16px;
+    display: grid;
+    gap: 12px;
+}
+
+.prompt-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+}
+
+.prompt-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    padding-top: 4px;
+}
+
+.prompt-value {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.prompt-value.empty {
+    color: var(--text-muted);
+}
+
+.prompt-chip {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.prompt-empty {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.prompt-full {
+    margin-top: 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    padding: 16px;
+}
+
+.prompt-full-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.prompt-full-header h4 {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.prompt-full-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.prompt-full-body {
     font-size: 14px;
     line-height: 1.8;
     color: var(--text-primary);
-    min-height: 60px;
+    white-space: pre-line;
 }
 
 .prompt-placeholder {
     color: var(--text-muted);
     font-style: italic;
+}
+
+/* Template Editor */
+.header-actions-inline {
+    display: flex;
+    gap: 8px;
+}
+
+.template-editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.template-editor {
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+}
+
+.template-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.template-editor-header h4 {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.template-editor-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.template-editor-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+}
+
+.template-editor-hint code {
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', Menlo, Monaco, monospace;
+    font-size: 11px;
+}
+
+.template-textarea {
+    font-family: 'SF Mono', Menlo, Monaco, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 100px;
+    resize: vertical;
+}
+
+.variable-reference {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+
+.variable-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.variable-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.variable-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.variable-chip:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.variable-chip code {
+    font-family: 'SF Mono', Menlo, Monaco, monospace;
+    font-size: 11px;
+    color: var(--primary);
+}
+
+.variable-value {
+    color: var(--text-muted);
+    font-size: 11px;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Result Area */
@@ -665,7 +903,7 @@ textarea.form-input {
 /* Generate Section */
 .generate-section {
     text-align: center;
-    padding: 20px;
+    padding: 12px 0 0;
 }
 
 .generate-btn {
@@ -832,5 +1070,14 @@ textarea.form-input {
     .field-checkbox {
         padding-top: 0;
         margin-bottom: 8px;
+    }
+
+    .prompt-row {
+        grid-template-columns: 1fr;
+    }
+
+    .prompt-label {
+        padding-top: 0;
+        text-transform: none;
     }
 }
