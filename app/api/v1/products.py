@@ -1,16 +1,17 @@
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from sqlalchemy import select, func, update
+from sqlalchemy import select, func, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.models.database import Product, User
+from app.models.database import Product, ProductImage, User
 from app.models.schemas import (
     ProductUpdate,
     ProductSummary,
+    ProductImageSummary,
     ProductDetail,
     ProductListResponse,
     ProductRecognitionResponse,
@@ -30,6 +31,27 @@ from app.clients.llm_client import (
 )
 
 router = APIRouter()
+
+
+def build_product_detail_response(product: Product, images: List[ProductImage]) -> ProductDetail:
+    if images:
+        image_payload = [ProductImageSummary.model_validate(img) for img in images]
+    else:
+        image_payload = [
+            ProductImageSummary(
+                id=product.id,
+                image_url=product.original_image_url,
+                image_size_bytes=product.image_size_bytes,
+                is_primary=True,
+                created_at=product.created_at,
+                updated_at=product.updated_at,
+            )
+        ]
+
+    product_data = ProductDetail.model_validate(product).model_dump()
+    product_data["images"] = image_payload
+    product_data["image_count"] = len(image_payload)
+    return ProductDetail(**product_data)
 
 
 @router.post("/products/recognize", response_model=ProductRecognitionResponse)
@@ -115,7 +137,8 @@ async def recognize_product_preview(
 
 @router.post("/products", response_model=ProductDetail, status_code=status.HTTP_201_CREATED)
 async def create_product(
-    image: UploadFile = File(...),
+    images: Optional[List[UploadFile]] = File(None),
+    image: Optional[UploadFile] = File(None),
     name: Optional[str] = Form(None),
     dimensions: Optional[str] = Form(None),
     features: Optional[str] = Form(None),  # JSON string
@@ -123,33 +146,25 @@ async def create_product(
     recognition_mode: Optional[str] = Form("auto"),  # auto | manual | prefill
     recognition_confidence: Optional[float] = Form(None),  # For prefill mode
     recognition_metadata_json: Optional[str] = Form(None),  # For prefill mode (JSON string)
+    primary_index: Optional[int] = Form(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Create a new product with image upload.
+    Create a new product with image uploads.
 
     Recognition modes:
     - auto (default): Run AI recognition to extract product attributes
     - manual: Skip AI and use only manually entered fields
     - prefill: Skip AI but preserve preview recognition confidence/metadata
 
-    - Upload a product image (required)
+    - Upload one or more product images (required)
+    - The primary image (default: first) is used for AI recognition and list thumbnails
     - Manual attributes override AI results in 'auto' mode
     - Enforces storage quota
     """
     import json
     from pathlib import Path
-
-    # Read image data
-    image_data = await image.read()
-
-    # Check image size
-    if len(image_data) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Empty image file"
-        )
 
     if name is not None and len(name) > 200:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="name must be <= 200 characters")
@@ -178,26 +193,64 @@ async def create_product(
     manual_features = parse_string_list(features, "features")
     manual_characteristics = parse_string_list(characteristics, "characteristics")
 
-    # Detect image format
-    try:
-        detected_format = get_image_format(image_data)
-    except ProductStorageError:
+    uploads: List[UploadFile] = []
+    if images:
+        uploads.extend(images)
+    if image and image not in uploads:
+        uploads.append(image)
+
+    if not uploads:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid or unsupported image file",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one image file is required",
         )
 
-    if detected_format not in {"jpeg", "png"}:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Only JPEG and PNG images are supported",
+    image_payloads: List[Dict[str, Any]] = []
+    for idx, upload in enumerate(uploads):
+        image_data = await upload.read()
+        if len(image_data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Empty image file at index {idx}",
+            )
+
+        try:
+            detected_format = get_image_format(image_data)
+        except ProductStorageError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid or unsupported image file",
+            )
+
+        if detected_format not in {"jpeg", "png"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Only JPEG and PNG images are supported",
+            )
+
+        filename_ext = Path(upload.filename or "").suffix.lower().lstrip(".")
+        if detected_format == "png":
+            img_format = "png"
+        else:
+            img_format = filename_ext if filename_ext in {"jpg", "jpeg"} else "jpeg"
+
+        image_payloads.append(
+            {
+                "data": image_data,
+                "format": img_format,
+                "filename": upload.filename or f"image-{idx}",
+            }
         )
 
-    filename_ext = Path(image.filename or "").suffix.lower().lstrip(".")
-    if detected_format == "png":
-        img_format = "png"
-    else:
-        img_format = filename_ext if filename_ext in {"jpg", "jpeg"} else "jpeg"
+    if primary_index is None:
+        primary_index = 0
+    if primary_index < 0 or primary_index >= len(image_payloads):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="primary_index is out of range",
+        )
+
+    primary_payload = image_payloads[primary_index]
 
     # Validate recognition_mode
     if recognition_mode not in {"auto", "manual", "prefill"}:
@@ -207,7 +260,7 @@ async def create_product(
         )
 
     # Prepare image for AI recognition (convert/compress for LLM input only)
-    llm_image_data, preprocessing = prepare_image_for_llm(image_data)
+    llm_image_data, preprocessing = prepare_image_for_llm(primary_payload["data"])
     llm_mime_type = "image/jpeg" if preprocessing["processed_format"] in {"jpg", "jpeg"} else "image/png"
 
     # AI recognition based on mode
@@ -301,13 +354,25 @@ async def create_product(
         # Override confidence since this is from prefill
         recognition_result.confidence = ai_confidence
 
+    if recognition_metadata is None:
+        recognition_metadata = {}
+    if isinstance(recognition_metadata, dict):
+        recognition_metadata["image_count"] = len(image_payloads)
+        recognition_metadata["primary_index"] = primary_index
+    else:
+        recognition_metadata = {
+            "image_count": len(image_payloads),
+            "primary_index": primary_index,
+            "metadata": recognition_metadata,
+        }
+
     # Override AI results with manual input if provided
     final_name = name if name else recognition_result.name
     final_dimensions = dimensions if dimensions else recognition_result.dimensions
     final_features = manual_features if manual_features is not None else recognition_result.features
     final_characteristics = manual_characteristics if manual_characteristics is not None else recognition_result.characteristics
 
-    requested_size = len(image_data)
+    requested_size = sum(len(payload["data"]) for payload in image_payloads)
 
     # Fast fail quota check (authoritative check is the conditional UPDATE below)
     if current_user.storage_used_bytes + requested_size > current_user.storage_quota_bytes:
@@ -355,22 +420,55 @@ async def create_product(
             },
         )
 
-    # Save image to file system
+    primary_image_url = None
+    saved_image_urls: List[str] = []
+    product_images: List[ProductImage] = []
+    total_image_size = 0
+
+    # Save images to file system
     try:
-        image_url, image_size = save_product_image(
-            user_id=current_user.id,
-            product_id=product_id,
-            image_data=image_data,
-            original_format=img_format
-        )
+        for idx, payload in enumerate(image_payloads):
+            image_id = str(uuid4())
+            is_primary = idx == primary_index
+            image_url, image_size = save_product_image(
+                user_id=current_user.id,
+                product_id=product_id,
+                image_data=payload["data"],
+                original_format=payload["format"],
+                image_id=None if is_primary else image_id,
+            )
+            if is_primary:
+                primary_image_url = image_url
+            saved_image_urls.append(image_url)
+            total_image_size += image_size
+            product_image = ProductImage(
+                id=image_id,
+                product_id=product_id,
+                user_id=current_user.id,
+                image_url=image_url,
+                image_size_bytes=image_size,
+                is_primary=is_primary,
+            )
+            product_images.append(product_image)
+            db.add(product_image)
     except ProductStorageError as e:
         await db.rollback()
+        for url in saved_image_urls:
+            try:
+                delete_product_image(url)
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save product image: {str(e)}"
         )
     except Exception:
         await db.rollback()
+        for url in saved_image_urls:
+            try:
+                delete_product_image(url)
+            except Exception:
+                pass
         raise
 
     # Create product record
@@ -381,10 +479,10 @@ async def create_product(
         dimensions=final_dimensions,
         features=final_features,
         characteristics=final_characteristics,
-        original_image_url=image_url,
+        original_image_url=primary_image_url or saved_image_urls[0],
         recognition_confidence=ai_confidence,
         recognition_metadata=recognition_metadata,
-        image_size_bytes=image_size,
+        image_size_bytes=total_image_size,
     )
 
     db.add(product)
@@ -401,7 +499,15 @@ async def create_product(
 
     await db.refresh(product)
 
-    return product
+    images_stmt = (
+        select(ProductImage)
+        .where(ProductImage.product_id == product_id)
+        .order_by(ProductImage.is_primary.desc(), ProductImage.created_at.asc())
+    )
+    images_result = await db.execute(images_stmt)
+    product_images = images_result.scalars().all()
+
+    return build_product_detail_response(product, product_images)
 
 
 @router.get("/products", response_model=ProductListResponse)
@@ -422,29 +528,53 @@ async def list_products(
     # Limit bounds
     limit = min(limit, 100)
 
-    # Build query
-    query = select(Product)
+    # Build query filters
+    conditions = []
     if not current_user.is_admin:
-        query = query.where(Product.user_id == current_user.id)
+        conditions.append(Product.user_id == current_user.id)
 
     # Apply name filter if provided
     if name:
-        query = query.where(Product.name.ilike(f"%{name}%"))
+        conditions.append(Product.name.ilike(f"%{name}%"))
+
+    base_query = select(Product).where(*conditions)
 
     # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
+    count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
+    image_count_subq = (
+        select(ProductImage.product_id, func.count(ProductImage.id).label("image_count"))
+        .group_by(ProductImage.product_id)
+        .subquery()
+    )
+
     # Apply pagination and ordering
-    query = query.order_by(Product.created_at.desc()).offset(offset).limit(limit)
+    list_query = (
+        select(Product, image_count_subq.c.image_count)
+        .outerjoin(image_count_subq, Product.id == image_count_subq.c.product_id)
+        .where(*conditions)
+        .order_by(Product.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
 
     # Execute query
-    result = await db.execute(query)
-    products = result.scalars().all()
+    result = await db.execute(list_query)
+    rows = result.all()
+
+    products_payload = []
+    for product, image_count in rows:
+        data = ProductSummary.model_validate(product).model_dump()
+        count_value = image_count or 0
+        if count_value == 0:
+            count_value = 1
+        data["image_count"] = count_value
+        products_payload.append(ProductSummary(**data))
 
     return ProductListResponse(
-        products=[ProductSummary.model_validate(p) for p in products],
+        products=products_payload,
         total=total,
         offset=offset,
         limit=limit,
@@ -476,7 +606,15 @@ async def get_product(
             detail="Product not found"
         )
 
-    return product
+    images_stmt = (
+        select(ProductImage)
+        .where(ProductImage.product_id == product_id)
+        .order_by(ProductImage.is_primary.desc(), ProductImage.created_at.asc())
+    )
+    images_result = await db.execute(images_stmt)
+    product_images = images_result.scalars().all()
+
+    return build_product_detail_response(product, product_images)
 
 
 @router.put("/products/{product_id}", response_model=ProductDetail)
@@ -513,7 +651,15 @@ async def update_product(
     await db.commit()
     await db.refresh(product)
 
-    return product
+    images_stmt = (
+        select(ProductImage)
+        .where(ProductImage.product_id == product_id)
+        .order_by(ProductImage.is_primary.desc(), ProductImage.created_at.asc())
+    )
+    images_result = await db.execute(images_stmt)
+    product_images = images_result.scalars().all()
+
+    return build_product_detail_response(product, product_images)
 
 
 @router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -542,12 +688,22 @@ async def delete_product_endpoint(
             detail="Product not found"
         )
 
-    # Delete image file
-    try:
-        delete_product_image(product.original_image_url)
-    except ProductStorageError:
-        # Log error but continue with database deletion
-        pass
+    images_stmt = select(ProductImage).where(ProductImage.product_id == product_id)
+    images_result = await db.execute(images_stmt)
+    product_images = images_result.scalars().all()
+
+    if product_images:
+        for image in product_images:
+            try:
+                delete_product_image(image.image_url)
+            except ProductStorageError:
+                pass
+        await db.execute(delete(ProductImage).where(ProductImage.product_id == product_id))
+    else:
+        try:
+            delete_product_image(product.original_image_url)
+        except ProductStorageError:
+            pass
 
     # Reclaim storage quota
     stmt = (

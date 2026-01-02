@@ -238,3 +238,21 @@ class Product(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class ProductImage(Base):
+    __tablename__ = "product_images"
+    __table_args__ = (
+        CheckConstraint("image_size_bytes >= 0", name="ck_product_images_image_size_bytes"),
+    )
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    product_id = Column(String(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    image_url = Column(String(1000), nullable=False)
+    image_size_bytes = Column(Integer, nullable=False, default=0)
+    is_primary = Column(Boolean, nullable=False, default=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -316,6 +316,18 @@ class ProductSummary(BaseModel):
     original_image_url: str
     recognition_confidence: Optional[float] = None
     image_size_bytes: int
+    image_count: int = 1
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class ProductImageSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    image_url: str
+    image_size_bytes: int
+    is_primary: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -324,6 +336,7 @@ class ProductDetail(ProductSummary):
     features: Optional[List[str]] = None
     characteristics: Optional[List[str]] = None
     recognition_metadata: Optional[Dict[str, Any]] = None
+    images: List[ProductImageSummary] = Field(default_factory=list)
 
 
 class ProductListResponse(BaseModel):

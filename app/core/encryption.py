@@ -48,13 +48,25 @@ def _get_openssl_path() -> str:
     if path:
         return path
     
-    # Fallback to common locations on macOS/Linux
-    common_paths = [
-        "/opt/homebrew/bin/openssl",
-        "/usr/local/bin/openssl",
-        "/usr/bin/openssl",
-        "/bin/openssl",
-    ]
+    # Fallback to common locations per OS
+    if os.name == "nt":
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
+        program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+        common_paths = [
+            os.path.join(program_files, "Git", "usr", "bin", "openssl.exe"),
+            os.path.join(program_files_x86, "Git", "usr", "bin", "openssl.exe"),
+            os.path.join(program_files, "OpenSSL-Win64", "bin", "openssl.exe"),
+            os.path.join(program_files_x86, "OpenSSL-Win32", "bin", "openssl.exe"),
+            r"C:\OpenSSL-Win64\bin\openssl.exe",
+            r"C:\OpenSSL-Win32\bin\openssl.exe",
+        ]
+    else:
+        common_paths = [
+            "/opt/homebrew/bin/openssl",
+            "/usr/local/bin/openssl",
+            "/usr/bin/openssl",
+            "/bin/openssl",
+        ]
     for p in common_paths:
         if os.path.exists(p) and os.access(p, os.X_OK):
             return p

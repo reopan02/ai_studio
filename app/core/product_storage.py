@@ -148,7 +148,8 @@ def save_product_image(
     user_id: str,
     product_id: str,
     image_data: bytes,
-    original_format: str = "jpg"
+    original_format: str = "jpg",
+    image_id: Optional[str] = None,
 ) -> Tuple[str, int]:
     """
     Save a product image to the file system.
@@ -158,6 +159,7 @@ def save_product_image(
         product_id: Product UUID
         image_data: Image bytes
         original_format: Original file format (jpg, jpeg, png)
+        image_id: Optional image UUID (used for additional images)
 
     Returns:
         Tuple of (relative_url, file_size_bytes)
@@ -177,7 +179,8 @@ def save_product_image(
             raise ProductStorageError(f"Unsupported image format: {original_format}")
 
         # Generate filename
-        filename = f"{product_id}.{ext}"
+        filename_stem = product_id if not image_id else f"{product_id}-{image_id}"
+        filename = f"{filename_stem}.{ext}"
         file_path = user_dir / filename
 
         # Save image

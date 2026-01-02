@@ -21,7 +21,8 @@ export default defineConfig(({ command }) => ({
         storage: fileURLToPath(new URL('./storage.html', import.meta.url)),
         admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
         image: fileURLToPath(new URL('./image.html', import.meta.url)),
-        products: fileURLToPath(new URL('./products.html', import.meta.url))
+        products: fileURLToPath(new URL('./products.html', import.meta.url)),
+        'ecommerce-image': fileURLToPath(new URL('./ecommerce-image.html', import.meta.url))
       }
     }
   }

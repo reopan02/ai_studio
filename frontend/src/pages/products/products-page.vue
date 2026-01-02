@@ -40,29 +40,107 @@
           </div>
         </div>
 
-        <div class="form-grid" style="margin-top: 16px">
+        <div class="form-grid image-grid" style="margin-top: 16px">
           <div class="form-group">
             <label>产品图片</label>
-            <input
-              type="file"
-              accept="image/jpeg,image/png"
-              :disabled="isEditing"
-              @change="handleFileChange"
-            />
+            <div
+              class="dropzone"
+              :class="{ 'is-dragover': isDragOver, 'is-loading': saving || prefilling, 'is-disabled': isEditing }"
+              @click.stop="triggerFilePicker"
+              @dragenter.prevent="handleDragEnter"
+              @dragover.prevent="handleDragOver"
+              @dragleave.prevent="handleDragLeave"
+              @drop.prevent="handleDrop"
+            >
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/jpeg,image/png"
+                multiple
+                :disabled="isEditing"
+                @change="handleFileChange"
+              />
+              <div class="dropzone-inner">
+                <div class="dropzone-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="dropzone-title">拖拽或点击上传多张产品图</div>
+                  <div class="dropzone-subtitle">主图用于 AI 识别与列表展示</div>
+                </div>
+                <div class="dropzone-actions">
+                  <button class="btn btn-secondary btn-sm" type="button" :disabled="isEditing" @click.stop="triggerFilePicker">
+                    选择图片
+                  </button>
+                  <button
+                    v-if="selectedImages.length > 0"
+                    class="btn btn-ghost btn-sm"
+                    type="button"
+                    @click.stop="clearSelectedImages"
+                  >
+                    清空
+                  </button>
+                </div>
+              </div>
+            </div>
             <div class="form-hint">
-              支持 JPG/PNG；上传后服务端会进行 AI 识别（大图会自动压缩用于识别，不影响原图存储）
+              支持 JPG/PNG；可一次上传多张产品图，主图用于 AI 识别（大图会自动压缩用于识别，不影响原图存储）
             </div>
           </div>
 
           <div class="form-group">
-            <label>图片预览</label>
+            <label>主图预览</label>
             <div class="preview-box">
-              <img v-if="previewUrl" :src="previewUrl" alt="preview" class="preview-image" />
+              <img v-if="primaryPreviewUrl" :src="primaryPreviewUrl" alt="preview" class="preview-image" />
               <div v-else class="preview-placeholder">未选择图片</div>
             </div>
             <div v-if="recognitionConfidence !== null" class="form-hint">
               AI 置信度：{{ Math.round(recognitionConfidence * 100) }}%
             </div>
+          </div>
+        </div>
+
+        <div v-if="displayImageCount > 0" class="image-meta">
+          <span class="meta-text">已选择 {{ displayImageCount }} 张图片</span>
+          <span v-if="isEditing && selectedImages.length === 0" class="meta-text">编辑模式下图片不可替换</span>
+        </div>
+
+        <div v-if="selectedImages.length > 0" class="image-preview-grid product-image-grid">
+          <div
+            v-for="(img, index) in selectedImages"
+            :key="img.id"
+            class="preview-item"
+            :class="{ 'is-primary': index === primaryIndex }"
+          >
+            <img :src="img.url" :alt="`image-${index + 1}`" class="preview-img" />
+            <div v-if="index === primaryIndex" class="preview-badge">主图</div>
+            <div class="preview-actions">
+              <button
+                v-if="index !== primaryIndex"
+                class="preview-action-btn"
+                type="button"
+                @click="setPrimary(index)"
+              >
+                设为主图
+              </button>
+              <button class="preview-action-btn danger" type="button" @click="removeSelectedImage(index)">移除</button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="existingImages.length > 0" class="image-preview-grid product-image-grid">
+          <div
+            v-for="img in existingImages"
+            :key="img.id"
+            class="preview-item"
+            :class="{ 'is-primary': img.is_primary }"
+          >
+            <img :src="img.image_url" :alt="img.id" class="preview-img" />
+            <div v-if="img.is_primary" class="preview-badge">主图</div>
           </div>
         </div>
 
@@ -142,11 +220,13 @@
             <div v-for="p in products" :key="p.id" class="product-card">
               <div class="product-thumb">
                 <img :src="p.original_image_url" :alt="p.name" />
+                <span v-if="p.image_count > 1" class="image-count-badge">{{ p.image_count }} 张</span>
               </div>
               <div class="product-body">
                 <div class="product-title">{{ p.name }}</div>
                 <div class="product-meta">
                   <span v-if="p.dimensions">{{ p.dimensions }}</span>
+                  <span v-if="p.image_count > 1">· {{ p.image_count }} 张</span>
                   <span v-if="p.created_at">· {{ formatDate(p.created_at) }}</span>
                 </div>
                 <div class="product-meta" v-if="p.recognition_confidence !== null">
@@ -204,6 +284,16 @@ type ProductSummary = {
   original_image_url: string;
   recognition_confidence: number | null;
   image_size_bytes: number;
+  image_count: number;
+  created_at: string;
+  updated_at: string | null;
+};
+
+type ProductImage = {
+  id: string;
+  image_url: string;
+  image_size_bytes: number;
+  is_primary: boolean;
   created_at: string;
   updated_at: string | null;
 };
@@ -212,6 +302,13 @@ type ProductDetail = ProductSummary & {
   features: string[] | null;
   characteristics: string[] | null;
   recognition_metadata?: Record<string, unknown> | null;
+  images: ProductImage[];
+};
+
+type SelectedImage = {
+  id: string;
+  file: File;
+  url: string;
 };
 
 type ProductRecognitionResponse = {
@@ -244,8 +341,11 @@ const total = ref(0);
 const searchQuery = ref('');
 let searchTimer: number | null = null;
 
-const previewUrl = ref<string | null>(null);
-const selectedFile = ref<File | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+const isDragOver = ref(false);
+const selectedImages = ref<SelectedImage[]>([]);
+const existingImages = ref<ProductImage[]>([]);
+const primaryIndex = ref(0);
 const editingProductId = ref<string | null>(null);
 const recognitionConfidence = ref<number | null>(null);
 const prefilling = ref(false);
@@ -260,6 +360,16 @@ const form = reactive({
 });
 
 const isEditing = computed(() => Boolean(editingProductId.value));
+const primarySelectedImage = computed(() => selectedImages.value[primaryIndex.value] ?? null);
+const primaryExistingImage = computed(
+  () => existingImages.value.find((img) => img.is_primary) ?? existingImages.value[0] ?? null
+);
+const primaryPreviewUrl = computed(
+  () => primarySelectedImage.value?.url || primaryExistingImage.value?.image_url || null
+);
+const displayImageCount = computed(() =>
+  selectedImages.value.length > 0 ? selectedImages.value.length : existingImages.value.length
+);
 
 function clearMessages() {
   errorMessage.value = '';
@@ -291,10 +401,132 @@ function toLines(text: string): string[] {
     .filter(Boolean);
 }
 
-function releasePreviewUrl() {
-  if (previewUrl.value && previewUrl.value.startsWith('blob:')) {
-    URL.revokeObjectURL(previewUrl.value);
+function resetRecognitionPreview() {
+  recognitionConfidence.value = null;
+  previewRecognitionData.value = null;
+}
+
+function releaseSelectedImages() {
+  for (const image of selectedImages.value) {
+    if (image.url.startsWith('blob:')) {
+      URL.revokeObjectURL(image.url);
+    }
   }
+}
+
+function generateImageId(): string {
+  if (globalThis.crypto && 'randomUUID' in globalThis.crypto) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function isSupportedImage(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type === 'image/jpeg' || type === 'image/png') return true;
+  const name = file.name.toLowerCase();
+  return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png');
+}
+
+function addFiles(fileList: FileList | File[]) {
+  if (isEditing.value) {
+    setError('编辑模式下无法更换图片');
+    return;
+  }
+
+  const files = Array.from(fileList);
+  if (files.length === 0) return;
+
+  clearMessages();
+
+  let rejected = 0;
+  for (const file of files) {
+    if (!isSupportedImage(file)) {
+      rejected += 1;
+      continue;
+    }
+    const url = URL.createObjectURL(file);
+    selectedImages.value.push({
+      id: generateImageId(),
+      file,
+      url,
+    });
+  }
+
+  if (selectedImages.value.length > 0) {
+    primaryIndex.value = Math.min(primaryIndex.value, selectedImages.value.length - 1);
+    editingProductId.value = null;
+    existingImages.value = [];
+    resetRecognitionPreview();
+  }
+
+  if (rejected > 0) {
+    setError('仅支持 JPG/PNG 图片');
+  }
+}
+
+function triggerFilePicker() {
+  if (isEditing.value) return;
+  fileInput.value?.click();
+}
+
+function handleDragEnter() {
+  if (isEditing.value) return;
+  isDragOver.value = true;
+}
+
+function handleDragOver() {
+  if (isEditing.value) return;
+  isDragOver.value = true;
+}
+
+function handleDragLeave() {
+  isDragOver.value = false;
+}
+
+function handleDrop(event: DragEvent) {
+  if (isEditing.value) return;
+  isDragOver.value = false;
+  if (event.dataTransfer?.files) {
+    addFiles(event.dataTransfer.files);
+  }
+}
+
+function clearSelectedImages() {
+  releaseSelectedImages();
+  selectedImages.value = [];
+  primaryIndex.value = 0;
+  resetRecognitionPreview();
+}
+
+function removeSelectedImage(index: number) {
+  const [removed] = selectedImages.value.splice(index, 1);
+  if (removed?.url?.startsWith('blob:')) {
+    URL.revokeObjectURL(removed.url);
+  }
+
+  if (selectedImages.value.length === 0) {
+    primaryIndex.value = 0;
+  } else if (index === primaryIndex.value) {
+    primaryIndex.value = 0;
+  } else if (index < primaryIndex.value) {
+    primaryIndex.value -= 1;
+  }
+
+  resetRecognitionPreview();
+}
+
+function setPrimary(index: number) {
+  if (index < 0 || index >= selectedImages.value.length) return;
+  primaryIndex.value = index;
+  resetRecognitionPreview();
+}
+
+function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (!input.files) return;
+  addFiles(input.files);
+  input.value = '';
 }
 
 async function readApiError(res: Response): Promise<string> {
@@ -358,12 +590,13 @@ async function loadProductDetail(productId: string): Promise<ProductDetail> {
 
 function resetForm() {
   clearMessages();
-  releasePreviewUrl();
-  previewUrl.value = null;
-  selectedFile.value = null;
+  releaseSelectedImages();
+  selectedImages.value = [];
+  existingImages.value = [];
+  primaryIndex.value = 0;
+  isDragOver.value = false;
   editingProductId.value = null;
-  recognitionConfidence.value = null;
-  previewRecognitionData.value = null;
+  resetRecognitionPreview();
   form.name = '';
   form.dimensions = '';
   form.featuresText = '';
@@ -371,25 +604,10 @@ function resetForm() {
   form.rawText = '';
 }
 
-function handleFileChange(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-
-  clearMessages();
-  selectedFile.value = file;
-  editingProductId.value = null;
-  recognitionConfidence.value = null;
-  previewRecognitionData.value = null;
-
-  releasePreviewUrl();
-  previewUrl.value = URL.createObjectURL(file);
-}
-
 async function aiPrefillProduct() {
   clearMessages();
 
-  if (!selectedFile.value) {
+  if (!primarySelectedImage.value) {
     setError('请先选择图片');
     return;
   }
@@ -397,7 +615,7 @@ async function aiPrefillProduct() {
   prefilling.value = true;
   try {
     const fd = new FormData();
-    fd.append('image', selectedFile.value);
+    fd.append('image', primarySelectedImage.value.file);
     const rawText = form.rawText.trim();
     if (rawText) fd.append('raw_text', rawText);
 
@@ -432,7 +650,7 @@ async function aiPrefillProduct() {
 async function createProduct() {
   clearMessages();
 
-  if (!selectedFile.value) {
+  if (selectedImages.value.length === 0) {
     setError('请先选择图片');
     return;
   }
@@ -440,7 +658,10 @@ async function createProduct() {
   saving.value = true;
   try {
     const fd = new FormData();
-    fd.append('image', selectedFile.value);
+    for (const image of selectedImages.value) {
+      fd.append('images', image.file);
+    }
+    fd.append('primary_index', String(primaryIndex.value));
     const name = form.name.trim();
     if (name) fd.append('name', name);
     if (form.dimensions.trim()) fd.append('dimensions', form.dimensions.trim());
@@ -471,10 +692,10 @@ async function createProduct() {
     editingProductId.value = created.id;
     recognitionConfidence.value = created.recognition_confidence ?? 0.0;
     previewRecognitionData.value = null;
-
-    releasePreviewUrl();
-    previewUrl.value = created.original_image_url;
-    selectedFile.value = null;
+    releaseSelectedImages();
+    selectedImages.value = [];
+    primaryIndex.value = 0;
+    existingImages.value = created.images || [];
 
     form.name = created.name || '';
     form.dimensions = created.dimensions || '';
@@ -516,6 +737,7 @@ async function updateProduct() {
 
     const updated = (await res.json()) as ProductDetail;
     recognitionConfidence.value = updated.recognition_confidence;
+    existingImages.value = updated.images || existingImages.value;
     setSuccess('已保存修改');
     await loadProducts();
   } catch (e) {
@@ -533,9 +755,11 @@ async function editProduct(productId: string) {
     editingProductId.value = detail.id;
     recognitionConfidence.value = detail.recognition_confidence ?? null;
 
-    releasePreviewUrl();
-    previewUrl.value = detail.original_image_url;
-    selectedFile.value = null;
+    releaseSelectedImages();
+    selectedImages.value = [];
+    primaryIndex.value = 0;
+    existingImages.value = detail.images || [];
+    previewRecognitionData.value = null;
 
     form.name = detail.name || '';
     form.dimensions = detail.dimensions || '';
@@ -664,6 +888,26 @@ onMounted(async () => {
   justify-content: flex-end;
 }
 
+.image-grid {
+  align-items: start;
+}
+
+.dropzone {
+  position: relative;
+}
+
+.dropzone input[type='file'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dropzone.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .preview-box {
   border: 1px solid rgba(209, 209, 214, 0.65);
   border-radius: var(--radius-md);
@@ -684,6 +928,58 @@ onMounted(async () => {
 .preview-placeholder {
   font-size: 13px;
   color: var(--text-secondary);
+}
+
+.product-image-grid {
+  margin-top: 12px;
+}
+
+.preview-item {
+  position: relative;
+}
+
+.preview-item.is-primary {
+  border-color: rgba(0, 113, 227, 0.55);
+  box-shadow: 0 6px 18px rgba(0, 113, 227, 0.18);
+}
+
+.preview-badge {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--accent-color);
+  border: 1px solid rgba(0, 113, 227, 0.25);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.preview-action-btn {
+  border: 1px solid rgba(209, 209, 214, 0.8);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preview-action-btn:hover {
+  border-color: rgba(0, 113, 227, 0.45);
+  color: var(--accent-color);
+}
+
+.preview-action-btn.danger {
+  border-color: rgba(255, 59, 48, 0.35);
+  color: #b42318;
+}
+
+.preview-action-btn.danger:hover {
+  border-color: rgba(255, 59, 48, 0.6);
+  color: #d92d20;
 }
 
 .loading {
@@ -716,6 +1012,7 @@ onMounted(async () => {
 }
 
 .product-thumb {
+  position: relative;
   height: 160px;
   background: rgba(0, 0, 0, 0.03);
 }
@@ -743,6 +1040,19 @@ onMounted(async () => {
 .product-meta {
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.image-count-badge {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
 }
 
 .product-actions {

@@ -11,7 +11,7 @@ fi
 APP_NAME="AI Video Generator API"
 MODULE="app.main:app"
 HOST="0.0.0.0"
-PORT=8999
+PORT=8888
 LOG_FILE="server.log"
 PID_FILE="server.pid"
 
