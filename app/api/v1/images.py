@@ -13,6 +13,7 @@ from sqlalchemy.orm import load_only
 
 from app.api.deps import get_current_user
 from app.clients.image_edits_client import ImageEditsClient
+from app.clients.gemini_image_client import GeminiImageClient
 from app.config import get_settings
 from app.core.encryption import EncryptionError, decrypt_for_user, encrypt_for_user
 from app.db.session import get_db
@@ -94,15 +95,26 @@ async def images_edits_and_store(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to read uploaded files: {exc}")
 
     try:
-        async with ImageEditsClient(api_key=api_key, base_url=base_url) as client:
-            provider_response = await client.images_edits(
-                model=model,
-                prompt=prompt,
-                response_format=response_format,
-                aspect_ratio=aspect_ratio,
-                image_size=image_size,
-                images=provider_images,
-            )
+        # Use GeminiImageClient for Gemini models
+        if GeminiImageClient.is_gemini_model(model):
+            async with GeminiImageClient(api_key=api_key, base_url=base_url) as client:
+                provider_response = await client.generate_image(
+                    model=model,
+                    prompt=prompt,
+                    aspect_ratio=aspect_ratio,
+                    image_size=image_size,
+                    images=provider_images,
+                )
+        else:
+            async with ImageEditsClient(api_key=api_key, base_url=base_url) as client:
+                provider_response = await client.images_edits(
+                    model=model,
+                    prompt=prompt,
+                    response_format=response_format,
+                    aspect_ratio=aspect_ratio,
+                    image_size=image_size,
+                    images=provider_images,
+                )
     except httpx.HTTPStatusError as exc:
         detail = exc.response.text if exc.response is not None else str(exc)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
@@ -166,6 +178,7 @@ async def images_generations_and_store(
     prompt: str = Form(...),
     n: int = Form(default=1),
     size: Optional[str] = Form(default=None),
+    aspect_ratio: Optional[str] = Form(default=None),
     response_format: Optional[str] = Form(default=None),
     title: Optional[str] = Form(default=None),
     x_api_key: Optional[str] = Header(default=None),
@@ -173,16 +186,17 @@ async def images_generations_and_store(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Text-to-image generation endpoint following OpenAI DALL-E format."""
+    """Text-to-image generation endpoint supporting Gemini and legacy formats."""
     # Validate inputs
     if not prompt or not prompt.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Prompt is required")
     if len(prompt) > 1000:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Prompt must not exceed 1000 characters")
     n = max(1, min(10, n))
-    valid_sizes = {"256x256", "512x512", "1024x1024"}
+    # Support both Gemini format (1K, 2K, 4K) and legacy pixel format
+    valid_sizes = {"1K", "2K", "4K", "256x256", "512x512", "1024x1024"}
     if size and size not in valid_sizes:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid size. Must be one of: {', '.join(valid_sizes)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid size. Must be one of: {', '.join(sorted(valid_sizes))}")
 
     settings = get_settings()
     api_key = (x_api_key or settings.API_KEY or "").strip()
@@ -192,14 +206,24 @@ async def images_generations_and_store(
     base_url = (x_base_url or settings.API_BASE_URL or "").strip() or None
 
     try:
-        async with ImageEditsClient(api_key=api_key, base_url=base_url) as client:
-            provider_response = await client.images_generations(
-                model=model,
-                prompt=prompt,
-                n=n,
-                size=size,
-                response_format=response_format,
-            )
+        # Use GeminiImageClient for Gemini models
+        if GeminiImageClient.is_gemini_model(model):
+            async with GeminiImageClient(api_key=api_key, base_url=base_url) as client:
+                provider_response = await client.generate_image(
+                    model=model,
+                    prompt=prompt,
+                    aspect_ratio=aspect_ratio,
+                    image_size=size,  # size maps to image_size for Gemini
+                )
+        else:
+            async with ImageEditsClient(api_key=api_key, base_url=base_url) as client:
+                provider_response = await client.images_generations(
+                    model=model,
+                    prompt=prompt,
+                    n=n,
+                    size=size,
+                    response_format=response_format,
+                )
     except httpx.HTTPStatusError as exc:
         detail = exc.response.text if exc.response is not None else str(exc)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
@@ -211,6 +235,7 @@ async def images_generations_and_store(
         "prompt": prompt,
         "n": n,
         "size": size,
+        "aspect_ratio": aspect_ratio,
         "response_format": response_format,
         "provider": {"base_url": base_url or settings.API_BASE_URL},
     }

@@ -1,7 +1,7 @@
 // @ts-nocheck
 const STORAGE_KEYS = {
-    apiKey: 'video_api_key',
-    baseUrl: 'video_base_url'
+    apiKey: 'global_api_key',
+    baseUrl: 'global_base_url'
 };
 
 const IMAGE_PLACEHOLDER_SRC =
@@ -100,8 +100,8 @@ function extractErrorMessage(data, fallback) {
 // ==========================================
 	        const state = {
 	            config: {
-	                apiKey: localStorage.getItem(STORAGE_KEYS.apiKey) || localStorage.getItem('apiKey') || '',
-	                baseUrl: localStorage.getItem(STORAGE_KEYS.baseUrl) || localStorage.getItem('baseUrl') || ''
+	                apiKey: localStorage.getItem(STORAGE_KEYS.apiKey) || localStorage.getItem('video_api_key') || localStorage.getItem('apiKey') || '',
+	                baseUrl: localStorage.getItem(STORAGE_KEYS.baseUrl) || localStorage.getItem('video_base_url') || localStorage.getItem('baseUrl') || ''
 	            },
 	            images: [],
 	            currentImageIndex: -1,
@@ -143,12 +143,6 @@ function extractErrorMessage(data, fallback) {
 // DOM Elements
 // ==========================================
 const elements = {
-    // Config
-    apiKey: document.getElementById('apiKey'),
-    baseUrl: document.getElementById('baseUrl'),
-    saveConfigBtn: document.getElementById('saveConfigBtn'),
-    resetConfigBtn: document.getElementById('resetConfigBtn'),
-
     // Model
     modelSelect: document.getElementById('modelSelect'),
     modelSearch: document.getElementById('modelSearch'),
@@ -322,53 +316,12 @@ function formatDateTime(date) {
 // Configuration Management
 // ==========================================
 function loadConfig() {
-    elements.apiKey.value = state.config.apiKey;
-    elements.baseUrl.value = state.config.baseUrl;
+    // Load from global config keys (set in portal page)
+    state.config.apiKey = localStorage.getItem(STORAGE_KEYS.apiKey) || localStorage.getItem('video_api_key') || '';
+    state.config.baseUrl = localStorage.getItem(STORAGE_KEYS.baseUrl) || localStorage.getItem('video_base_url') || '';
 
     if (state.config.apiKey || state.config.baseUrl) updateStatus('connected', 'Configured');
     else updateStatus('', 'Ready');
-}
-
-function saveConfig() {
-    const apiKey = normalizeApiKey(elements.apiKey.value);
-    let baseUrl = null;
-    try {
-        baseUrl = normalizeApiBaseUrl(elements.baseUrl.value);
-    } catch (e) {
-        showToast('error', 'Invalid Base URL', e?.message || 'Invalid Base URL');
-        return;
-    }
-
-    state.config.apiKey = apiKey;
-    state.config.baseUrl = baseUrl || '';
-    elements.apiKey.value = state.config.apiKey;
-    elements.baseUrl.value = state.config.baseUrl;
-
-    localStorage.setItem(STORAGE_KEYS.apiKey, state.config.apiKey);
-    localStorage.setItem(STORAGE_KEYS.baseUrl, state.config.baseUrl);
-    localStorage.setItem('apiKey', state.config.apiKey);
-    localStorage.setItem('baseUrl', state.config.baseUrl);
-
-    if (state.config.apiKey || state.config.baseUrl) {
-        updateStatus('connected', 'Configured');
-        showToast('success', 'Configuration saved', 'API settings have been saved');
-    } else {
-        updateStatus('', 'Ready');
-        showToast('success', 'Configuration cleared', 'Using server defaults');
-    }
-}
-
-function resetConfig() {
-    elements.apiKey.value = '';
-    elements.baseUrl.value = '';
-    state.config.apiKey = '';
-    state.config.baseUrl = '';
-    localStorage.removeItem(STORAGE_KEYS.apiKey);
-    localStorage.removeItem(STORAGE_KEYS.baseUrl);
-    localStorage.removeItem('apiKey');
-    localStorage.removeItem('baseUrl');
-    updateStatus('', 'Ready');
-    showToast('success', 'Configuration reset', 'API settings have been cleared');
 }
 
 // ==========================================
@@ -1490,10 +1443,6 @@ function initToggleVisibility() {
 // Event Listeners
 // ==========================================
 function initEventListeners() {
-    // Config
-    elements.saveConfigBtn.addEventListener('click', saveConfig);
-    elements.resetConfigBtn.addEventListener('click', resetConfig);
-
     // File upload
     elements.fileInput.addEventListener('change', (e) => handleFileSelect(e.target.files));
     elements.uploadArea.addEventListener('dragover', (e) => {

@@ -19,57 +19,39 @@
           </svg>
           返回主页面
         </a>
-        <button class="btn btn-ghost btn-icon" @click="showSettings = !showSettings" title="Settings">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </button>
       </div>
     </header>
+
+    <nav class="wizard-nav">
+      <div class="wizard-steps">
+        <button
+          v-for="step in steps"
+          :key="step.id"
+          class="wizard-step"
+          :class="{
+            active: currentStep === step.id,
+            completed: isStepComplete(step.id),
+            disabled: !canNavigateTo(step.id)
+          }"
+          :aria-current="currentStep === step.id ? 'step' : undefined"
+          :aria-disabled="!canNavigateTo(step.id)"
+          @click="handleStepClick(step.id)"
+        >
+          <span class="wizard-step-indicator">
+            <svg v-if="isStepComplete(step.id)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span v-else>{{ step.id }}</span>
+          </span>
+          <span class="wizard-step-label">{{ step.title }}</span>
+        </button>
+      </div>
+      <div class="wizard-step-hint" v-if="navHint">{{ navHint }}</div>
+    </nav>
 
     <div class="main-container">
       <!-- Sidebar -->
       <aside class="sidebar">
-        <!-- API Config Section (collapsible) -->
-        <section class="sidebar-section" v-if="showSettings">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/>
-            </svg>
-            API Configuration
-          </div>
-          <div class="form-group">
-            <label class="form-label">API Key</label>
-            <div class="input-wrapper">
-              <input :type="showApiKey ? 'text' : 'password'" class="form-input" v-model="apiConfig.apiKey" placeholder="Enter your API key">
-              <button class="toggle-visibility" @click="showApiKey = !showApiKey">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Base URL</label>
-            <div class="input-wrapper">
-              <input :type="showBaseUrl ? 'text' : 'password'" class="form-input" v-model="apiConfig.baseUrl" placeholder="https://api.example.com">
-              <button class="toggle-visibility" @click="showBaseUrl = !showBaseUrl">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="btn-group">
-            <button class="btn btn-primary btn-sm" @click="saveApiConfig">Save</button>
-            <button class="btn btn-secondary btn-sm" @click="resetApiConfig">Reset</button>
-          </div>
-        </section>
-
         <!-- Model Selection -->
         <section class="sidebar-section">
           <div class="section-title">
@@ -81,11 +63,8 @@
             Model Selection
           </div>
           <select class="form-select" v-model="modelConfig.model">
-            <option value="gpt-image-1.5">gpt-image-1.5</option>
-            <option value="nano-banana-2-4k">nano-banana-2-4k</option>
-            <option value="nano-banana-2-2k">nano-banana-2-2k</option>
-            <option value="nano-banana-2">nano-banana-2</option>
-            <option value="nano-banana">nano-banana</option>
+            <option value="gemini-3-pro-image-preview">gemini-3-pro-image-preview (推荐)</option>
+            <option value="gemini-2.5-flash-image">gemini-2.5-flash-image (快速)</option>
           </select>
           <div class="form-group" style="margin-top: 16px;">
             <label class="form-label">Aspect Ratio</label>
@@ -208,14 +187,15 @@
       <!-- Main Content -->
 
       <main class="main-content">
-        <section class="workflow-section">
+        <transition name="step-fade" mode="out-in">
+          <section v-if="currentStep === 1" class="workflow-section">
           <div class="content-panel">
             <div class="panel-header">
               <div class="panel-title">
                 <span class="step-indicator">1</span>
                 <div>
-                  <h3>产品信息</h3>
-                  <p class="panel-subtitle">勾选要包含在提示词中的字段</p>
+                  <h3>产品选择</h3>
+                  <p class="panel-subtitle">选择产品与参考图，并完善提示词字段</p>
                 </div>
               </div>
               <span class="panel-hint" v-if="!selectedProduct">请先从左侧选择产品</span>
@@ -281,13 +261,13 @@
           </div>
         </section>
 
-        <section class="workflow-section">
+          <section v-else-if="currentStep === 2" class="workflow-section">
           <div class="content-panel">
             <div class="panel-header">
               <div class="panel-title">
                 <span class="step-indicator">2</span>
                 <div>
-                  <h3>模板与标签</h3>
+                  <h3>模板配置</h3>
                   <p class="panel-subtitle">点击标签可多选，支持就地编辑</p>
                 </div>
               </div>
@@ -301,16 +281,20 @@
             </div>
 
             <div class="template-modules">
-              <div class="template-module">
-                <div class="module-header">
-                  <span class="module-title">场景选择</span>
-                  <button class="btn btn-ghost btn-icon-sm" @click="addOption('scene')">
+              <CollapsibleGroup
+                title="场景选择"
+                :summary="getGroupSummary('scene')"
+                :open="templateGroupOpen.scene"
+                @toggle="toggleGroup('scene')"
+              >
+                <template #actions>
+                  <button class="btn btn-ghost btn-icon-sm" @click.stop="addOption('scene')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <line x1="12" y1="5" x2="12" y2="19"/>
                       <line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
                   </button>
-                </div>
+                </template>
                 <div class="option-chips">
                   <div
                     v-for="option in templates.scene"
@@ -352,18 +336,22 @@
                     </button>
                   </div>
                 </div>
-              </div>
+              </CollapsibleGroup>
 
-              <div class="template-module">
-                <div class="module-header">
-                  <span class="module-title">拍摄角度</span>
-                  <button class="btn btn-ghost btn-icon-sm" @click="addOption('angle')">
+              <CollapsibleGroup
+                title="拍摄角度"
+                :summary="getGroupSummary('angle')"
+                :open="templateGroupOpen.angle"
+                @toggle="toggleGroup('angle')"
+              >
+                <template #actions>
+                  <button class="btn btn-ghost btn-icon-sm" @click.stop="addOption('angle')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <line x1="12" y1="5" x2="12" y2="19"/>
                       <line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
                   </button>
-                </div>
+                </template>
                 <div class="option-chips">
                   <div
                     v-for="option in templates.angle"
@@ -405,18 +393,25 @@
                     </button>
                   </div>
                 </div>
-              </div>
+              </CollapsibleGroup>
 
-              <div class="template-module">
-                <div class="module-header">
-                  <span class="module-title">风格 / 光影 <span class="optional-tag">(可选)</span></span>
-                  <button class="btn btn-ghost btn-icon-sm" @click="addOption('style')">
+              <CollapsibleGroup
+                title="风格 / 光影"
+                :summary="getGroupSummary('style')"
+                :open="templateGroupOpen.style"
+                @toggle="toggleGroup('style')"
+              >
+                <template #title-extra>
+                  <span class="optional-tag">(可选)</span>
+                </template>
+                <template #actions>
+                  <button class="btn btn-ghost btn-icon-sm" @click.stop="addOption('style')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <line x1="12" y1="5" x2="12" y2="19"/>
                       <line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
                   </button>
-                </div>
+                </template>
                 <div class="option-chips">
                   <div
                     v-for="option in templates.style"
@@ -458,18 +453,22 @@
                     </button>
                   </div>
                 </div>
-              </div>
+              </CollapsibleGroup>
 
-              <div class="template-module">
-                <div class="module-header">
-                  <span class="module-title">生成目标</span>
-                  <button class="btn btn-ghost btn-icon-sm" @click="addOption('target')">
+              <CollapsibleGroup
+                title="生成目标"
+                :summary="getGroupSummary('target')"
+                :open="templateGroupOpen.target"
+                @toggle="toggleGroup('target')"
+              >
+                <template #actions>
+                  <button class="btn btn-ghost btn-icon-sm" @click.stop="addOption('target')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <line x1="12" y1="5" x2="12" y2="19"/>
                       <line x1="5" y1="12" x2="19" y2="12"/>
                     </svg>
                   </button>
-                </div>
+                </template>
                 <div class="option-chips">
                   <div
                     v-for="option in templates.target"
@@ -511,7 +510,7 @@
                     </button>
                   </div>
                 </div>
-              </div>
+              </CollapsibleGroup>
             </div>
 
             <div class="template-editor">
@@ -560,7 +559,7 @@
           </div>
         </section>
 
-        <section class="workflow-section">
+          <section v-else-if="currentStep === 3" class="workflow-section">
           <div class="content-panel prompt-preview-panel">
             <div class="panel-header">
               <div class="panel-title">
@@ -663,7 +662,7 @@
           </div>
         </section>
 
-        <section class="workflow-section">
+          <section v-else class="workflow-section">
           <div class="content-panel">
             <div class="panel-header">
               <div class="panel-title">
@@ -730,7 +729,37 @@
             </div>
           </div>
         </section>
+        </transition>
       </main>
+
+      <aside class="preview-panel">
+        <div class="preview-card">
+          <div class="preview-card-header">
+            <h4>提示词预览</h4>
+            <span class="preview-card-hint" v-if="!composedPrompt">完成前两步后显示</span>
+          </div>
+          <div class="preview-card-body">
+            <p v-if="composedPrompt">{{ composedPrompt }}</p>
+            <p v-else class="preview-placeholder">选择产品与模板选项后生成提示词。</p>
+          </div>
+        </div>
+
+        <div class="preview-card">
+          <div class="preview-card-header">
+            <h4>生成结果</h4>
+          </div>
+          <div class="preview-card-body preview-result">
+            <div v-if="generating" class="preview-loading">
+              <div class="spinner-small"></div>
+              <span>正在生成...</span>
+            </div>
+            <div v-else-if="generatedImage">
+              <img :src="generatedImage" alt="Generated preview" class="preview-image">
+            </div>
+            <p v-else class="preview-placeholder">生成完成后显示结果。</p>
+          </div>
+        </div>
+      </aside>
     </div>
 
     <!-- Toast Container -->
@@ -759,7 +788,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
+import CollapsibleGroup from '../../components/CollapsibleGroup.vue';
 
 // Types
 interface Product {
@@ -828,20 +858,26 @@ const DEFAULT_TEMPLATES: Record<TemplateCategory, TemplateOption[]> = {
 const DEFAULT_PROMPT_TEMPLATE = `{{product_name}}{{dimensions|}}，{{features|}}{{characteristics|}}，{{scene|}}，{{angle|}}，{{style|}}，{{target|}}，高清产品摄影`;
 
 // State
-const showSettings = ref(false);
-const showApiKey = ref(false);
-const showBaseUrl = ref(false);
-
 const apiConfig = reactive({
   apiKey: '',
   baseUrl: ''
 });
 
 const modelConfig = reactive({
-  model: 'gpt-image-1.5',
+  model: 'gemini-3-pro-image-preview',
   aspectRatio: '',
-  imageSize: ''
+  imageSize: '1K'
 });
+
+const steps = [
+  { id: 1, title: '选择产品' },
+  { id: 2, title: '配置模板' },
+  { id: 3, title: '预览提示词' },
+  { id: 4, title: '生成图片' }
+];
+
+const currentStep = ref(1);
+const navHint = ref('');
 
 // Products
 const products = ref<Product[]>([]);
@@ -883,6 +919,15 @@ const selectedTemplates = reactive({
   style: [] as string[],
   target: [] as string[]
 });
+
+const templateGroupOpen = reactive<Record<TemplateCategory, boolean>>({
+  scene: true,
+  angle: false,
+  style: false,
+  target: false
+});
+
+const templateGroupTouched = ref(false);
 
 const editingOption = reactive({
   category: '' as TemplateCategory | '',
@@ -937,6 +982,40 @@ const selectedLabels = computed(() => ({
   style: getSelectedLabels('style'),
   target: getSelectedLabels('target')
 }));
+
+const hasTemplateSelection = computed(() => {
+  return selectedTemplates.scene.length > 0 ||
+    selectedTemplates.angle.length > 0 ||
+    selectedTemplates.style.length > 0 ||
+    selectedTemplates.target.length > 0;
+});
+
+function getGroupSummary(category: TemplateCategory): string {
+  const labels = selectedLabels.value[category];
+  if (!labels.length) return '未选择';
+  if (labels.length <= 2) return labels.join('、');
+  return `${labels[0]}、${labels[1]} 等${labels.length}项`;
+}
+
+function toggleGroup(category: TemplateCategory) {
+  templateGroupOpen[category] = !templateGroupOpen[category];
+  templateGroupTouched.value = true;
+}
+
+function initializeTemplateGroups(force: boolean = false) {
+  if (templateGroupTouched.value && !force) return;
+  const categories: TemplateCategory[] = ['scene', 'angle', 'style', 'target'];
+  let opened = false;
+  categories.forEach((category) => {
+    if (!opened && selectedTemplates[category].length === 0) {
+      templateGroupOpen[category] = true;
+      opened = true;
+    } else {
+      templateGroupOpen[category] = false;
+    }
+  });
+  templateGroupTouched.value = false;
+}
 
 const productTokens = computed(() => {
   const tokens: string[] = [];
@@ -1029,6 +1108,49 @@ const generationHint = computed(() => {
   if (!composedPrompt.value) return '请完善模板选项或产品信息';
   return '';
 });
+
+function isStepComplete(stepId: number): boolean {
+  if (stepId === 1) {
+    return !!selectedProduct.value && selectedImages.value.length > 0;
+  }
+  if (stepId === 2) {
+    return hasTemplateSelection.value;
+  }
+  if (stepId === 3) {
+    return composedPrompt.value.length > 0;
+  }
+  if (stepId === 4) {
+    return generatedImage.value.length > 0;
+  }
+  return false;
+}
+
+const maxNavigableStep = computed(() => {
+  if (!isStepComplete(1)) return 1;
+  if (!isStepComplete(2)) return 2;
+  if (!isStepComplete(3)) return 3;
+  return 4;
+});
+
+function canNavigateTo(stepId: number): boolean {
+  return stepId <= maxNavigableStep.value;
+}
+
+function getBlockedHint(): string {
+  if (!isStepComplete(1)) return '请先完成步骤1：选择产品并勾选参考图';
+  if (!isStepComplete(2)) return '请先完成步骤2：至少选择一个模板选项';
+  if (!isStepComplete(3)) return '请先完成步骤3：完善提示词预览';
+  return '请先完成前置步骤';
+}
+
+function handleStepClick(stepId: number) {
+  if (canNavigateTo(stepId)) {
+    currentStep.value = stepId;
+    navHint.value = '';
+    return;
+  }
+  navHint.value = getBlockedHint();
+}
 
 // Methods
 function getCsrfToken(): string {
@@ -1258,6 +1380,8 @@ function resetTemplates() {
   selectedTemplates.target = [];
   editingOption.category = '';
   editingOption.id = '';
+  templateGroupTouched.value = false;
+  initializeTemplateGroups(true);
 
   localStorage.removeItem('ecommerce-image-templates');
   showToast('模板已重置为默认值', 'success');
@@ -1347,29 +1471,10 @@ function truncateValue(value: string, maxLength: number = 20): string {
   return value.substring(0, maxLength) + '...';
 }
 
-function saveApiConfig() {
-  localStorage.setItem('ecommerce-image-api-config', JSON.stringify(apiConfig));
-  showToast('API 配置已保存', 'success');
-}
-
-function resetApiConfig() {
-  apiConfig.apiKey = '';
-  apiConfig.baseUrl = '';
-  localStorage.removeItem('ecommerce-image-api-config');
-  showToast('API 配置已重置', 'success');
-}
-
 function loadApiConfig() {
-  const saved = localStorage.getItem('ecommerce-image-api-config');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (parsed.apiKey) apiConfig.apiKey = parsed.apiKey;
-      if (parsed.baseUrl) apiConfig.baseUrl = parsed.baseUrl;
-    } catch (e) {
-      // Ignore parse errors
-    }
-  }
+  // Load from global config keys (set in portal page)
+  apiConfig.apiKey = localStorage.getItem('global_api_key') || localStorage.getItem('video_api_key') || '';
+  apiConfig.baseUrl = localStorage.getItem('global_base_url') || localStorage.getItem('video_base_url') || '';
 }
 
 async function copyPrompt() {
@@ -1480,11 +1585,25 @@ function showToast(message: string, type: Toast['type'] = 'info') {
   }, 3000);
 }
 
+watch(currentStep, (step) => {
+  navHint.value = '';
+  if (step === 2) {
+    initializeTemplateGroups();
+  }
+});
+
+watch(maxNavigableStep, (step) => {
+  if (currentStep.value > step) {
+    currentStep.value = step;
+  }
+});
+
 // Lifecycle
 onMounted(() => {
   loadTemplates();
   loadPromptTemplate();
   loadApiConfig();
   fetchProducts();
+  initializeTemplateGroups(true);
 });
 </script>

@@ -17,57 +17,12 @@
           </svg>
           返回主页面
         </a>
-        <button class="btn btn-ghost btn-icon" @click="showSettings = !showSettings" title="Settings">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </button>
       </div>
     </header>
 
     <div class="main-container">
       <!-- Sidebar -->
       <aside class="sidebar">
-        <!-- API Config Section (collapsible) -->
-        <section class="sidebar-section" v-if="showSettings">
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/>
-            </svg>
-            API 配置
-          </div>
-          <div class="form-group">
-            <label class="form-label">API Key</label>
-            <div class="input-wrapper">
-              <input :type="showApiKey ? 'text' : 'password'" class="form-input" v-model="apiConfig.apiKey" placeholder="输入 API Key">
-              <button class="toggle-visibility" @click="showApiKey = !showApiKey">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Base URL</label>
-            <div class="input-wrapper">
-              <input :type="showBaseUrl ? 'text' : 'password'" class="form-input" v-model="apiConfig.baseUrl" placeholder="https://api.example.com">
-              <button class="toggle-visibility" @click="showBaseUrl = !showBaseUrl">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="btn-group">
-            <button class="btn btn-primary btn-sm" @click="saveApiConfig">保存</button>
-            <button class="btn btn-secondary btn-sm" @click="resetApiConfig">重置</button>
-          </div>
-        </section>
-
         <!-- Model Selection -->
         <section class="sidebar-section">
           <div class="section-title">
@@ -79,11 +34,8 @@
             模型选择
           </div>
           <select class="form-select" v-model="modelConfig.model">
-            <option value="gpt-image-1.5">gpt-image-1.5</option>
-            <option value="nano-banana-2-4k">nano-banana-2-4k</option>
-            <option value="nano-banana-2-2k">nano-banana-2-2k</option>
-            <option value="nano-banana-2">nano-banana-2</option>
-            <option value="nano-banana">nano-banana</option>
+            <option value="gemini-3-pro-image-preview">gemini-3-pro-image-preview (推荐)</option>
+            <option value="gemini-2.5-flash-image">gemini-2.5-flash-image (快速)</option>
           </select>
         </section>
 
@@ -98,17 +50,30 @@
             图像设置
           </div>
           <div class="form-group">
-            <label class="form-label">生成数量</label>
-            <select class="form-select" v-model="imageSettings.n">
-              <option v-for="i in 10" :key="i" :value="i">{{ i }} 张</option>
+            <label class="form-label">宽高比</label>
+            <select class="form-select" v-model="imageSettings.aspectRatio">
+              <option value="">自动</option>
+              <option value="1:1">1:1 (正方形)</option>
+              <option value="16:9">16:9 (横向)</option>
+              <option value="9:16">9:16 (纵向)</option>
+              <option value="4:3">4:3 (标准)</option>
+              <option value="3:4">3:4 (竖版)</option>
+              <option value="3:2">3:2 (照片)</option>
+              <option value="2:3">2:3 (竖版照片)</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">图像尺寸</label>
             <select class="form-select" v-model="imageSettings.size">
-              <option value="1024x1024">1024x1024 (大)</option>
-              <option value="512x512">512x512 (中)</option>
-              <option value="256x256">256x256 (小)</option>
+              <option value="1K">1K (默认)</option>
+              <option value="2K">2K (高清)</option>
+              <option value="4K">4K (超高清)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">生成数量</label>
+            <select class="form-select" v-model="imageSettings.n">
+              <option v-for="i in 4" :key="i" :value="i">{{ i }} 张</option>
             </select>
           </div>
         </section>
@@ -129,7 +94,7 @@
               class="product-item"
               @click="loadHistoryItem(item)"
             >
-              <img :src="item.image_url || '/static/placeholder.png'" :alt="item.prompt" class="product-thumb">
+              <img :src="item.image_url || placeholderImage" :alt="item.prompt" class="product-thumb">
               <div class="product-info">
                 <div class="product-name">{{ truncate(item.prompt, 30) }}</div>
                 <div class="product-meta">{{ formatDate(item.created_at) }}</div>
@@ -280,22 +245,29 @@ interface Toast {
 }
 
 // State
-const showSettings = ref(false);
-const showApiKey = ref(false);
-const showBaseUrl = ref(false);
-
 const apiConfig = reactive({
   apiKey: '',
   baseUrl: ''
 });
 
+// Placeholder image as data URI
+const placeholderImage = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="#1a1a2e"/>
+  <rect x="25" y="25" width="50" height="50" rx="4" fill="none" stroke="#4a4a6a" stroke-width="2"/>
+  <circle cx="38" cy="38" r="5" fill="#4a4a6a"/>
+  <path d="M25 65 L45 45 L55 55 L75 35 L75 75 L25 75 Z" fill="#4a4a6a" opacity="0.5"/>
+</svg>
+`);
+
 const modelConfig = reactive({
-  model: 'gpt-image-1.5'
+  model: 'gemini-3-pro-image-preview'
 });
 
 const imageSettings = reactive({
   n: 1,
-  size: '1024x1024'
+  size: '1K',
+  aspectRatio: ''
 });
 
 const prompt = ref('');
@@ -390,25 +362,10 @@ function onPromptInput() {
   // Could add debounced save to localStorage here
 }
 
-function saveApiConfig() {
-  // Use same keys as Image Edit Studio
-  localStorage.setItem('image-edit-api-key', apiConfig.apiKey);
-  localStorage.setItem('image-edit-base-url', apiConfig.baseUrl);
-  showToast('API 配置已保存', 'success');
-}
-
-function resetApiConfig() {
-  apiConfig.apiKey = '';
-  apiConfig.baseUrl = '';
-  localStorage.removeItem('image-edit-api-key');
-  localStorage.removeItem('image-edit-base-url');
-  showToast('API 配置已重置', 'success');
-}
-
 function loadApiConfig() {
-  // Load from same keys as Image Edit Studio for sync
-  apiConfig.apiKey = localStorage.getItem('image-edit-api-key') || '';
-  apiConfig.baseUrl = localStorage.getItem('image-edit-base-url') || '';
+  // Load from global config keys (set in portal page)
+  apiConfig.apiKey = localStorage.getItem('global_api_key') || localStorage.getItem('video_api_key') || '';
+  apiConfig.baseUrl = localStorage.getItem('global_base_url') || localStorage.getItem('video_base_url') || '';
 }
 
 async function generateImage() {
@@ -424,6 +381,9 @@ async function generateImage() {
     formData.append('n', String(imageSettings.n));
     formData.append('size', imageSettings.size);
     formData.append('response_format', 'url');
+    if (imageSettings.aspectRatio) {
+      formData.append('aspect_ratio', imageSettings.aspectRatio);
+    }
 
     const headers: Record<string, string> = {
       'X-CSRF-Token': getCsrfToken()

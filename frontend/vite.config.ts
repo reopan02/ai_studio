@@ -12,7 +12,8 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     outDir: fileURLToPath(new URL('../app/static', import.meta.url)),
-    emptyOutDir: true,
+    // Avoid deleting uploaded assets stored under app/static/uploads.
+    emptyOutDir: false,
     rollupOptions: {
       input: {
         app: fileURLToPath(new URL('./app.html', import.meta.url)),
