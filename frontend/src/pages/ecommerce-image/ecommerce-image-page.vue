@@ -517,7 +517,7 @@
               <div class="template-editor-header">
                 <div>
                   <h4>提示词模板</h4>
-                  <p class="template-editor-subtitle">自定义提示词结构，可插入变量</p>
+                  <p class="template-editor-subtitle">系统会自动拼接已选信息，可补充额外描述</p>
                 </div>
                 <button class="btn btn-ghost btn-sm" @click="resetPromptTemplate">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -529,31 +529,15 @@
               </div>
               <div class="template-editor-section">
                 <div class="template-editor-hint">
-                  使用 <code v-text="'{{变量名}}'"></code> 插入变量，支持默认值：
-                  <code v-text="'{{变量名|默认值}}'"></code>
+                  已选场景/角度等会自动生成，例如：场景：客厅，拍摄角度：正面。
                 </div>
                 <textarea
                   class="form-input template-textarea"
                   v-model="promptTemplate"
                   rows="4"
-                  placeholder="输入提示词模板..."
+                  placeholder="补充提示词，如：高清产品摄影"
                   @input="savePromptTemplate"
                 ></textarea>
-                <div class="variable-reference">
-                  <div class="variable-title">可用变量</div>
-                  <div class="variable-chips">
-                    <span
-                      class="variable-chip"
-                      v-for="v in availableVariables"
-                      :key="v.name"
-                      @click="insertVariable(v.name)"
-                      :title="v.description"
-                    >
-                      <code v-text="'{{' + v.name + '}}'"></code>
-                      <span class="variable-value" v-if="v.currentValue">{{ truncateValue(v.currentValue) }}</span>
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -566,7 +550,7 @@
                 <span class="step-indicator">3</span>
                 <div>
                   <h3>提示词预览</h3>
-                  <p class="panel-subtitle">分段预览并高亮关键变量</p>
+                  <p class="panel-subtitle">分段预览并高亮关键信息</p>
                 </div>
               </div>
               <span class="panel-hint" v-if="!composedPrompt">完善产品信息与模板后自动生成</span>
@@ -854,8 +838,8 @@ const DEFAULT_TEMPLATES: Record<TemplateCategory, TemplateOption[]> = {
   ]
 };
 
-// Default prompt template with variable placeholders
-const DEFAULT_PROMPT_TEMPLATE = `{{product_name}}{{dimensions|}}，{{features|}}{{characteristics|}}，{{scene|}}，{{angle|}}，{{style|}}，{{target|}}，高清产品摄影`;
+// Default extra prompt text
+const DEFAULT_PROMPT_TEMPLATE = '高清产品摄影';
 
 // State
 const apiConfig = reactive({
@@ -1038,61 +1022,57 @@ const promptSegments = computed(() => ({
   target: selectedLabels.value.target
 }));
 
-// Get variable values for template
-const variableValues = computed(() => {
-  const featuresTokens = fieldToggles.features ? splitLines(editableProduct.featuresText) : [];
-  const characteristicsTokens = fieldToggles.characteristics ? splitLines(editableProduct.characteristicsText) : [];
+function formatKeyedSegment(label: string, values: string[]): string {
+  if (!values.length) return '';
+  return `${label}：${joinTokens(values)}`;
+}
 
-  return {
-    product_name: fieldToggles.name ? editableProduct.name.trim() : '',
-    dimensions: fieldToggles.dimensions ? editableProduct.dimensions.trim() : '',
-    features: joinTokens(featuresTokens),
-    characteristics: joinTokens(characteristicsTokens),
-    scene: joinTokens(selectedLabels.value.scene),
-    angle: joinTokens(selectedLabels.value.angle),
-    style: joinTokens(selectedLabels.value.style),
-    target: joinTokens(selectedLabels.value.target)
-  };
-});
+function normalizePrompt(text: string): string {
+  return text
+    // Clean up multiple consecutive separators (，、)
+    .replace(/[，、]{2,}/g, '，')
+    // Clean up leading/trailing separators
+    .replace(/^[，、\s]+/, '')
+    .replace(/[，、\s]+$/, '')
+    // Clean up spaces around separators
+    .replace(/\s*[，、]\s*/g, '，')
+    .trim();
+}
 
-// Available variables for reference
-const availableVariables = computed(() => {
-  const vals = variableValues.value;
-  return [
-    { name: 'product_name', description: '产品名称', currentValue: vals.product_name },
-    { name: 'dimensions', description: '尺寸规格', currentValue: vals.dimensions },
-    { name: 'features', description: '功能特征（以、分隔）', currentValue: vals.features },
-    { name: 'characteristics', description: '产品特点（以、分隔）', currentValue: vals.characteristics },
-    { name: 'scene', description: '场景选择', currentValue: vals.scene },
-    { name: 'angle', description: '拍摄角度', currentValue: vals.angle },
-    { name: 'style', description: '风格/光影', currentValue: vals.style },
-    { name: 'target', description: '生成目标', currentValue: vals.target }
-  ];
-});
-
-// Parse template and replace variables
-function parseTemplate(template: string, values: Record<string, string>): string {
-  // Match {{variable}} or {{variable|default}}
-  return template.replace(/\{\{(\w+)(?:\|([^}]*))?\}\}/g, (match, varName, defaultValue) => {
-    const value = values[varName];
-    if (value && value.trim()) {
-      return value;
-    }
-    // Use default value if provided, otherwise empty string
-    return defaultValue !== undefined ? defaultValue : '';
-  })
-  // Clean up multiple consecutive separators (，、)
-  .replace(/[，、]{2,}/g, '，')
-  // Clean up leading/trailing separators
-  .replace(/^[，、\s]+/, '')
-  .replace(/[，、\s]+$/, '')
-  // Clean up spaces around separators
-  .replace(/\s*[，、]\s*/g, '，');
+function sanitizePromptTemplate(template: string): string {
+  if (!template) return '';
+  const trimmed = template.trim();
+  if (!trimmed.includes('{{')) return trimmed;
+  const withoutVariables = trimmed.replace(/\{\{(\w+)(?:\|([^}]*))?\}\}/g, (_match, _varName, defaultValue) => {
+    return defaultValue ?? '';
+  });
+  return normalizePrompt(withoutVariables);
 }
 
 const composedPrompt = computed(() => {
   if (!selectedProduct.value) return '';
-  return parseTemplate(promptTemplate.value, variableValues.value);
+  const segments: string[] = [];
+
+  if (productTokens.value.length) {
+    segments.push(joinTokens(productTokens.value));
+  }
+
+  const sceneSegment = formatKeyedSegment('场景', selectedLabels.value.scene);
+  if (sceneSegment) segments.push(sceneSegment);
+
+  const angleSegment = formatKeyedSegment('拍摄角度', selectedLabels.value.angle);
+  if (angleSegment) segments.push(angleSegment);
+
+  const styleSegment = formatKeyedSegment('风格', selectedLabels.value.style);
+  if (styleSegment) segments.push(styleSegment);
+
+  const targetSegment = formatKeyedSegment('生成目标', selectedLabels.value.target);
+  if (targetSegment) segments.push(targetSegment);
+
+  const extraText = sanitizePromptTemplate(promptTemplate.value);
+  if (extraText) segments.push(extraText);
+
+  return normalizePrompt(segments.join('，'));
 });
 
 const canGenerate = computed(() => {
@@ -1442,15 +1422,19 @@ function loadTemplates() {
   }
 }
 
-// Prompt Template functions
+// Prompt template functions
 function savePromptTemplate() {
-  localStorage.setItem('ecommerce-image-prompt-template', promptTemplate.value);
+  const sanitized = sanitizePromptTemplate(promptTemplate.value);
+  if (sanitized !== promptTemplate.value) {
+    promptTemplate.value = sanitized;
+  }
+  localStorage.setItem('ecommerce-image-prompt-template', sanitized);
 }
 
 function loadPromptTemplate() {
   const saved = localStorage.getItem('ecommerce-image-prompt-template');
   if (saved) {
-    promptTemplate.value = saved;
+    promptTemplate.value = sanitizePromptTemplate(saved);
   }
 }
 
@@ -1458,17 +1442,6 @@ function resetPromptTemplate() {
   promptTemplate.value = DEFAULT_PROMPT_TEMPLATE;
   localStorage.removeItem('ecommerce-image-prompt-template');
   showToast('提示词模板已重置为默认值', 'success');
-}
-
-function insertVariable(varName: string) {
-  promptTemplate.value += `{{${varName}}}`;
-  savePromptTemplate();
-}
-
-function truncateValue(value: string, maxLength: number = 20): string {
-  if (!value) return '';
-  if (value.length <= maxLength) return value;
-  return value.substring(0, maxLength) + '...';
 }
 
 function loadApiConfig() {

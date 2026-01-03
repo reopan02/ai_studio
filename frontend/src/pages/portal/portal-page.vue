@@ -1,8 +1,42 @@
 <template>
-  <div class="container">
-    <header>
-      <h1>Video API Portal</h1>
-      <p style="color: var(--text-secondary); margin-top: 8px">请选择功能模块</p>
+  <div class="container portal-container">
+    <!-- SVG Gradient Definitions -->
+    <svg width="0" height="0" style="position: absolute;">
+      <defs>
+        <linearGradient id="grad-video" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#8B5CF6"/>
+          <stop offset="100%" stop-color="#3B82F6"/>
+        </linearGradient>
+        <linearGradient id="grad-image-gen" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#3B82F6"/>
+          <stop offset="100%" stop-color="#06B6D4"/>
+        </linearGradient>
+        <linearGradient id="grad-ecommerce" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#F97316"/>
+          <stop offset="100%" stop-color="#EC4899"/>
+        </linearGradient>
+        <linearGradient id="grad-products" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#10B981"/>
+          <stop offset="100%" stop-color="#06B6D4"/>
+        </linearGradient>
+        <linearGradient id="grad-storage" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#3B82F6"/>
+          <stop offset="100%" stop-color="#8B5CF6"/>
+        </linearGradient>
+        <linearGradient id="grad-image-edit" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#EC4899"/>
+          <stop offset="100%" stop-color="#8B5CF6"/>
+        </linearGradient>
+        <linearGradient id="grad-admin" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#64748B"/>
+          <stop offset="100%" stop-color="#3B82F6"/>
+        </linearGradient>
+      </defs>
+    </svg>
+
+    <header class="portal-header">
+      <h1>AI 创作工作室</h1>
+      <p>请选择功能模块</p>
     </header>
 
     <section v-if="error" class="card error-banner" style="margin-bottom: 20px">
@@ -95,82 +129,107 @@
       </div>
     </section>
 
-    <div class="portal-grid">
-      <a href="/video" class="card portal-card">
-        <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-          <line x1="7" y1="2" x2="7" y2="22"></line>
-          <line x1="17" y1="2" x2="17" y2="22"></line>
-          <line x1="2" y1="12" x2="22" y2="12"></line>
-          <line x1="2" y1="7" x2="7" y2="7"></line>
-          <line x1="2" y1="17" x2="7" y2="17"></line>
-          <line x1="17" y1="17" x2="22" y2="17"></line>
-          <line x1="17" y1="7" x2="22" y2="7"></line>
-        </svg>
-        <div class="portal-title">视频生成</div>
-        <div class="portal-desc">Sora 2, Veo, Seedance 等模型视频生成</div>
-      </a>
+    <!-- AI 生成 Section -->
+    <section class="portal-section">
+      <div class="section-header section-header-purple">
+        <span class="section-label">AI 生成</span>
+      </div>
+      <div class="portal-grid">
+        <a href="/video" class="card portal-card portal-card-video">
+          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-video)" stroke="none">
+            <rect x="2" y="2" width="20" height="20" rx="3"/>
+            <polygon points="10 8 16 12 10 16" fill="white"/>
+          </svg>
+          <div class="portal-title">AI 视频</div>
+          <div class="portal-desc">Sora、Veo、Seedance 等模型</div>
+        </a>
 
-      <a href="/storage" class="card portal-card">
-        <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        <div class="portal-title">存储库</div>
-        <div class="portal-desc">查看历史生成记录</div>
-      </a>
+        <a href="/image-generate" class="card portal-card portal-card-image-gen">
+          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-image-gen)" stroke="none">
+            <rect x="2" y="2" width="20" height="20" rx="3"/>
+            <circle cx="8" cy="8" r="2" fill="white"/>
+            <path d="M22 16l-5-5-8 8h11a2 2 0 0 0 2-2v-1z" fill="white" opacity="0.8"/>
+          </svg>
+          <div class="portal-title">AI 图像</div>
+          <div class="portal-desc">文字描述生成图像</div>
+        </a>
 
-      <a href="/image" class="card portal-card">
-        <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-          <circle cx="8.5" cy="8.5" r="1.5"></circle>
-          <polyline points="21 15 16 10 5 21"></polyline>
-        </svg>
-        <div class="portal-title">图像处理</div>
-        <div class="portal-desc">多图参考的图像编辑 (Gemini)</div>
-      </a>
+        <a href="/ecommerce-image" class="card portal-card portal-card-ecommerce">
+          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-ecommerce)" stroke="none">
+            <rect x="2" y="2" width="20" height="20" rx="3"/>
+            <rect x="6" y="10" width="12" height="8" rx="1" fill="white"/>
+            <circle cx="9" cy="18" r="1.5" fill="white"/>
+            <circle cx="15" cy="18" r="1.5" fill="white"/>
+            <path d="M8 6h8l1 4H7l1-4z" fill="white"/>
+          </svg>
+          <div class="portal-title">电商图片</div>
+          <div class="portal-desc">基于产品素材快速生成</div>
+        </a>
+      </div>
+    </section>
 
-      <a href="/image-generate" class="card portal-card">
-        <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-        <div class="portal-title">图像生成</div>
-        <div class="portal-desc">文生图，根据文字描述生成图像</div>
-      </a>
+    <!-- 资产管理 Section -->
+    <section class="portal-section">
+      <div class="section-header section-header-green">
+        <span class="section-label">资产管理</span>
+      </div>
+      <div class="portal-grid">
+        <a href="/products" class="card portal-card portal-card-products">
+          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-products)" stroke="none">
+            <rect x="2" y="4" width="20" height="16" rx="3"/>
+            <rect x="5" y="8" width="6" height="8" rx="1" fill="white"/>
+            <rect x="13" y="8" width="6" height="8" rx="1" fill="white"/>
+            <rect x="8" y="2" width="8" height="4" rx="1" fill="white" opacity="0.8"/>
+          </svg>
+          <div class="portal-title">产品素材库</div>
+          <div class="portal-desc">产品图片识别与管理</div>
+        </a>
 
-      <a href="/products" class="card portal-card">
-        <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"></path>
-          <path d="M9 2v5"></path>
-          <path d="M15 2v5"></path>
-          <path d="M2 9h20"></path>
-        </svg>
-        <div class="portal-title">产品库</div>
-        <div class="portal-desc">产品图片识别与管理</div>
-      </a>
+        <a href="/storage" class="card portal-card portal-card-storage">
+          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-storage)" stroke="none">
+            <rect x="2" y="2" width="20" height="20" rx="3"/>
+            <rect x="5" y="6" width="14" height="3" rx="1" fill="white"/>
+            <rect x="5" y="11" width="14" height="3" rx="1" fill="white" opacity="0.7"/>
+            <rect x="5" y="16" width="14" height="3" rx="1" fill="white" opacity="0.5"/>
+          </svg>
+          <div class="portal-title">生成记录</div>
+          <div class="portal-desc">查看历史生成内容</div>
+        </a>
 
-      <a href="/ecommerce-image" class="card portal-card">
-        <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-          <circle cx="8.5" cy="8.5" r="1.5"></circle>
-          <polyline points="21 15 16 10 5 21"></polyline>
-          <path d="M14 3v4h4"></path>
-        </svg>
-        <div class="portal-title">电商图生成</div>
-        <div class="portal-desc">基于产品库的电商图快速生成</div>
-      </a>
+        <a href="/image" class="card portal-card portal-card-image-edit">
+          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-image-edit)" stroke="none">
+            <rect x="2" y="2" width="20" height="20" rx="3"/>
+            <circle cx="8" cy="8" r="2" fill="white"/>
+            <path d="M22 16l-5-5-8 8h11a2 2 0 0 0 2-2v-1z" fill="white" opacity="0.8"/>
+            <path d="M18 4l2 2-8 8-2-2 8-8z" fill="white"/>
+          </svg>
+          <div class="portal-title">图像编辑</div>
+          <div class="portal-desc">多图参考编辑 (Gemini)</div>
+        </a>
+      </div>
+    </section>
 
-      <a v-if="isAdmin" href="/admin" class="card portal-card">
-        <svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path
-            d="M12 1l3 5 5 1-3.5 4.2.8 5.8L12 15l-5.3 2.9.8-5.8L4 7l5-1 3-5z"
-          ></path>
-        </svg>
-        <div class="portal-title">Admin</div>
-        <div class="portal-desc">User management &amp; system stats</div>
-      </a>
-    </div>
+    <!-- 系统设置 Section (Admin Only) -->
+    <section v-if="isAdmin" class="portal-section">
+      <div class="section-header section-header-gray">
+        <span class="section-label">系统设置</span>
+        <span class="section-tag">仅管理员</span>
+      </div>
+      <div class="portal-grid">
+        <a href="/admin" class="card portal-card portal-card-admin">
+          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-admin)" stroke="none">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="4" fill="white"/>
+            <rect x="11" y="2" width="2" height="4" rx="1" fill="white"/>
+            <rect x="11" y="18" width="2" height="4" rx="1" fill="white"/>
+            <rect x="18" y="11" width="4" height="2" rx="1" fill="white"/>
+            <rect x="2" y="11" width="4" height="2" rx="1" fill="white"/>
+          </svg>
+          <div class="portal-title">管理后台</div>
+          <div class="portal-desc">用户管理与系统统计</div>
+        </a>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -296,8 +355,38 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Portal Container */
+.portal-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+/* Portal Header */
+.portal-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.portal-header h1 {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #8B5CF6, #3B82F6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.portal-header p {
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+
+/* API Config Section */
 .api-config-section {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
   padding: 0;
   overflow: hidden;
 }
@@ -473,51 +562,198 @@ onMounted(async () => {
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-.portal-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
-  margin-top: 40px;
+/* Portal Section */
+.portal-section {
+  margin-bottom: 40px;
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-left: 16px;
+  position: relative;
+}
+
+.section-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 20px;
+  border-radius: 2px;
+}
+
+.section-header-purple::before {
+  background: linear-gradient(135deg, #8B5CF6, #3B82F6);
+}
+
+.section-header-green::before {
+  background: linear-gradient(135deg, #10B981, #06B6D4);
+}
+
+.section-header-gray::before {
+  background: linear-gradient(135deg, #64748B, #3B82F6);
+}
+
+.section-label {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.section-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(100, 116, 139, 0.2);
+  color: var(--text-muted);
+}
+
+/* Portal Grid */
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 28px;
+}
+
+/* Portal Card */
 .portal-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 48px 32px;
   text-align: center;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
   text-decoration: none;
   color: inherit;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.portal-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  border-radius: 16px;
+}
+
+.portal-card-video::before {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(59, 130, 246, 0.08));
+}
+
+.portal-card-image-gen::before {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(6, 182, 212, 0.08));
+}
+
+.portal-card-ecommerce::before {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(236, 72, 153, 0.08));
+}
+
+.portal-card-products::before {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(6, 182, 212, 0.08));
+}
+
+.portal-card-storage::before {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08));
+}
+
+.portal-card-image-edit::before {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.08), rgba(139, 92, 246, 0.08));
+}
+
+.portal-card-admin::before {
+  background: linear-gradient(135deg, rgba(100, 116, 139, 0.08), rgba(59, 130, 246, 0.08));
 }
 
 .portal-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.portal-card:hover::before {
+  opacity: 1;
 }
 
 .portal-icon {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 20px;
-  color: var(--accent-color);
+  width: 80px;
+  height: 80px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
 }
 
 .portal-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+  position: relative;
+  z-index: 1;
 }
 
 .portal-desc {
   color: var(--text-secondary);
+  font-size: 15px;
+  position: relative;
+  z-index: 1;
 }
 
 .error-banner {
   border: 1px solid rgba(255, 59, 48, 0.25);
   background: rgba(255, 59, 48, 0.06);
   color: #b42318;
+}
+
+/* Responsive */
+@media (max-width: 1199px) {
+  .portal-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .portal-container {
+    padding: 24px 16px;
+  }
+
+  .portal-header h1 {
+    font-size: 28px;
+  }
+
+  .portal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-card {
+    padding: 36px 24px;
+  }
+
+  .portal-icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .portal-title {
+    font-size: 22px;
+  }
+
+  .section-header {
+    padding-left: 12px;
+  }
+
+  .section-label {
+    font-size: 13px;
+  }
 }
 </style>
