@@ -90,6 +90,12 @@
               <option value="4K">4K</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="form-label">生成数量</label>
+            <select class="form-select" v-model="modelConfig.generateCount">
+              <option v-for="n in 4" :key="n" :value="n">{{ n }} 张</option>
+            </select>
+          </div>
         </section>
 
         <!-- Product Selector -->
@@ -111,18 +117,37 @@
             <input type="text" class="form-input" v-model="productSearch" placeholder="搜索产品..." @input="searchProducts">
           </div>
 
-          <div class="product-list" v-if="!loadingProducts && products.length > 0">
+            <div class="product-list" v-if="!loadingProducts && products.length > 0">
             <div
               v-for="product in products"
               :key="product.id"
               class="product-item"
-              :class="{ selected: selectedProduct?.id === product.id }"
+              :class="{
+                selected: selectedProduct?.id === product.id,
+                loading: selectingProductId === product.id
+              }"
               @click="selectProduct(product)"
             >
-              <img :src="getProductThumbnail(product)" :alt="product.name" class="product-thumb">
+              <div class="product-thumb-wrap">
+                <img :src="getProductThumbnail(product)" :alt="product.name" class="product-thumb">
+                <span v-if="product.image_count > 1" class="product-count-badge">{{ product.image_count }}</span>
+              </div>
               <div class="product-info">
                 <div class="product-name">{{ product.name || '未命名产品' }}</div>
-                <div class="product-meta">{{ product.dimensions || '' }}</div>
+                <div class="product-meta">
+                  <span v-if="product.dimensions">{{ product.dimensions }}</span>
+                  <span v-if="product.dimensions && product.image_count">·</span>
+                  <span v-if="product.image_count">{{ product.image_count }} 张</span>
+                </div>
+              </div>
+              <div
+                class="product-select-indicator"
+                :class="{ active: selectedProduct?.id === product.id }"
+              >
+                <div v-if="selectingProductId === product.id" class="spinner-small"></div>
+                <svg v-else-if="selectedProduct?.id === product.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
               </div>
             </div>
           </div>
@@ -457,57 +482,97 @@
 
               <CollapsibleGroup
                 title="生成目标"
-                :summary="getGroupSummary('target')"
+                :summary="selectedTargetType ? selectedTargetType.name : '未选择'"
                 :open="templateGroupOpen.target"
                 @toggle="toggleGroup('target')"
               >
-                <template #actions>
-                  <button class="btn btn-ghost btn-icon-sm" @click.stop="addOption('target')">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="12" y1="5" x2="12" y2="19"/>
-                      <line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
-                  </button>
-                </template>
-                <div class="option-chips">
-                  <div
-                    v-for="option in templates.target"
-                    :key="option.id"
-                    class="option-chip"
-                    :class="{
-                      selected: selectedTemplates.target.includes(option.id),
-                      editing: isEditingOption('target', option.id)
-                    }"
-                  >
-                    <span
-                      v-if="!isEditingOption('target', option.id)"
-                      @click="toggleOption('target', option.id)"
-                    >{{ option.label }}</span>
-                    <input
-                      v-else
-                      type="text"
-                      class="option-edit-input"
-                      v-model="option.label"
-                      :data-option-id="option.id"
-                      @blur="finishEditing"
-                      @keydown.enter.prevent="finishEditing"
+                <div class="target-type-selector">
+                  <div class="target-type-options">
+                    <label
+                      v-for="target in targetTypes"
+                      :key="target.id"
+                      class="target-type-radio"
+                      :class="{ selected: selectedTargetTypeId === target.id }"
                     >
-                    <button
-                      class="chip-edit"
-                      @click.stop="startEditing('target', option.id)"
-                      v-if="!isEditingOption('target', option.id)"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                    </button>
-                    <button class="chip-delete" @click.stop="removeOption('target', option.id)">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                      </svg>
-                    </button>
+                      <input
+                        type="radio"
+                        name="target-type"
+                        :value="target.id"
+                        v-model="selectedTargetTypeId"
+                        @change="selectTargetType(target.id)"
+                      >
+                      <span class="target-type-label">{{ target.name }}</span>
+                    </label>
+                  </div>
+                  <div class="target-description-input" v-if="selectedTargetTypeId">
+                    <!-- Saved descriptions dropdown -->
+                    <div class="saved-descriptions-section" v-if="savedDescriptions.length > 0">
+                      <label class="target-description-label">已保存的描述</label>
+                      <div class="saved-descriptions-list">
+                        <div
+                          v-for="saved in savedDescriptions"
+                          :key="saved.id"
+                          class="saved-description-item"
+                          :class="{ active: currentSavedDescriptionId === saved.id }"
+                        >
+                          <button
+                            class="saved-description-btn"
+                            @click="loadSavedDescription(saved)"
+                          >
+                            {{ saved.name }}
+                          </button>
+                          <button
+                            class="saved-description-delete"
+                            @click.stop="deleteSavedDescription(saved.id)"
+                            title="删除"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <line x1="18" y1="6" x2="6" y2="18"/>
+                              <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <label class="target-description-label">目标描述</label>
+                    <textarea
+                      class="form-input target-textarea"
+                      v-model="targetDescription"
+                      :placeholder="targetPlaceholder"
+                      :disabled="targetDescriptionLoading || targetDescriptionSaving"
+                      rows="3"
+                    ></textarea>
+                    <div class="target-description-actions">
+                      <button
+                        class="btn btn-secondary btn-sm"
+                        type="button"
+                        @click="showSaveDialog = true"
+                        :disabled="!targetDescription.trim() || targetDescriptionSaving"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                          <polyline points="17 21 17 13 7 13 7 21"/>
+                          <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        保存描述
+                      </button>
+                      <button
+                        class="btn btn-ghost btn-sm"
+                        type="button"
+                        @click="resetToDefaultTemplate"
+                        :disabled="!selectedTargetType"
+                      >
+                        重置为默认
+                      </button>
+                    </div>
+                    <p class="target-description-hint">
+                      描述将作为生成提示词的一部分，请详细描述您期望的效果
+                    </p>
+                  </div>
+                  <div class="target-loading" v-if="loadingTargetTypes">
+                    <div class="spinner-small"></div>
+                    <span>加载目标类型...</span>
                   </div>
                 </div>
               </CollapsibleGroup>
@@ -533,11 +598,11 @@
                 </div>
                 <textarea
                   class="form-input template-textarea"
-                  v-model="promptTemplate"
-                  rows="4"
-                  placeholder="补充提示词，如：高清产品摄影"
-                  @input="savePromptTemplate"
-                ></textarea>
+              v-model="promptTemplate"
+              rows="4"
+              placeholder="补充提示词"
+              @input="savePromptTemplate"
+            ></textarea>
               </div>
             </div>
           </div>
@@ -611,13 +676,12 @@
               </div>
               <div class="prompt-row">
                 <span class="prompt-label">生成目标</span>
-                <div class="prompt-value" :class="{ empty: promptSegments.target.length === 0 }">
-                  <template v-if="promptSegments.target.length">
-                    <span
-                      v-for="(item, idx) in promptSegments.target"
-                      :key="`target-${idx}`"
-                      class="prompt-chip"
-                    >{{ item }}</span>
+                <div class="prompt-value" :class="{ empty: !targetDescription }">
+                  <template v-if="targetDescription">
+                    <span class="prompt-chip target-chip">
+                      <span class="target-chip-name" v-if="selectedTargetType">{{ selectedTargetType.name }}：</span>
+                      {{ targetDescription }}
+                    </span>
                   </template>
                   <span v-else class="prompt-empty">未选择目标</span>
                 </div>
@@ -660,7 +724,7 @@
             </div>
 
             <div class="result-area">
-              <div class="result-placeholder" v-if="!generating && !generatedImage">
+              <div class="result-placeholder" v-if="!generating && generatedImages.length === 0">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <rect x="3" y="3" width="18" height="18" rx="2"/>
                   <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -672,13 +736,39 @@
 
               <div class="loading-state" v-if="generating">
                 <div class="spinner"></div>
-                <p>正在生成图片...</p>
+                <p v-if="generationProgress.total > 1">正在生成图片 ({{ generationProgress.current }}/{{ generationProgress.total }})...</p>
+                <p v-else>正在生成图片...</p>
               </div>
 
-              <div class="result-container" v-if="generatedImage && !generating">
-                <img :src="generatedImage" alt="Generated image" class="result-image">
+              <div class="result-container" v-if="generatedImages.length > 0 && !generating">
+                <div class="result-grid" :class="{ 'single-image': generatedImages.length === 1 }">
+                  <div
+                    v-for="(img, idx) in generatedImages"
+                    :key="idx"
+                    class="result-image-item"
+                  >
+                    <img :src="img" alt="Generated image" class="result-image">
+                    <div class="result-image-overlay">
+                      <button class="btn btn-ghost btn-icon" @click="downloadSingleImage(img, idx)" title="下载">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="7 10 12 15 17 10"/>
+                          <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <div class="result-actions">
-                  <button class="btn btn-secondary" @click="downloadImage">
+                  <button class="btn btn-secondary" @click="downloadAllImages" v-if="generatedImages.length > 1">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    下载全部 ({{ generatedImages.length }})
+                  </button>
+                  <button class="btn btn-secondary" @click="downloadSingleImage(generatedImages[0], 0)" v-else>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                       <polyline points="7 10 12 15 17 10"/>
@@ -711,6 +801,38 @@
               </button>
               <div class="generate-hint" v-if="generationHint">{{ generationHint }}</div>
             </div>
+
+            <!-- Generation History -->
+            <div class="history-section" v-if="generationHistory.length > 0 || loadingHistory">
+              <div class="history-header">
+                <h4>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  生成历史
+                </h4>
+                <span class="history-count" v-if="generationHistory.length > 0">({{ generationHistory.length }})</span>
+              </div>
+              <div class="history-grid" v-if="!loadingHistory && generationHistory.length > 0">
+                <div
+                  v-for="item in generationHistory"
+                  :key="item.id"
+                  class="history-item"
+                  @click="loadHistoryItem(item)"
+                >
+                  <img :src="item.image_url || placeholderImage" :alt="item.prompt" class="history-thumb">
+                  <div class="history-info">
+                    <div class="history-prompt">{{ truncateText(item.prompt, 40) }}</div>
+                    <div class="history-meta">{{ formatHistoryDate(item.created_at) }}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="history-loading" v-else-if="loadingHistory">
+                <div class="spinner-small"></div>
+                <span>加载中...</span>
+              </div>
+            </div>
           </div>
         </section>
         </transition>
@@ -731,14 +853,22 @@
         <div class="preview-card">
           <div class="preview-card-header">
             <h4>生成结果</h4>
+            <span v-if="generatedImages.length > 1" class="preview-count">({{ generatedImages.length }})</span>
           </div>
           <div class="preview-card-body preview-result">
             <div v-if="generating" class="preview-loading">
               <div class="spinner-small"></div>
-              <span>正在生成...</span>
+              <span v-if="generationProgress.total > 1">{{ generationProgress.current }}/{{ generationProgress.total }}</span>
+              <span v-else>正在生成...</span>
             </div>
-            <div v-else-if="generatedImage">
-              <img :src="generatedImage" alt="Generated preview" class="preview-image">
+            <div v-else-if="generatedImages.length > 0" class="preview-images-grid">
+              <img
+                v-for="(img, idx) in generatedImages.slice(0, 4)"
+                :key="idx"
+                :src="img"
+                alt="Generated preview"
+                class="preview-image"
+              >
             </div>
             <p v-else class="preview-placeholder">生成完成后显示结果。</p>
           </div>
@@ -768,6 +898,52 @@
         <button class="btn btn-primary" @click="errorMessage = ''">确定</button>
       </div>
     </div>
+
+    <!-- Save Description Dialog -->
+    <div class="save-dialog-overlay" v-if="showSaveDialog" @click="showSaveDialog = false">
+      <div class="save-dialog-modal" @click.stop>
+        <div class="save-dialog-header">
+          <h3>保存目标描述</h3>
+          <button class="save-dialog-close" @click="showSaveDialog = false">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="save-dialog-body">
+          <div class="form-group">
+            <label class="form-label">描述名称</label>
+            <input
+              type="text"
+              class="form-input"
+              v-model="saveDescriptionName"
+              placeholder="例如：清新自然风格"
+              maxlength="100"
+            >
+          </div>
+          <div class="form-group">
+            <label class="form-label">描述内容</label>
+            <textarea
+              class="form-input"
+              :value="targetDescription"
+              readonly
+              rows="3"
+            ></textarea>
+          </div>
+        </div>
+        <div class="save-dialog-footer">
+          <button class="btn btn-secondary" @click="showSaveDialog = false">取消</button>
+          <button
+            class="btn btn-primary"
+            @click="saveNewDescription"
+            :disabled="!saveDescriptionName.trim() || targetDescriptionSaving"
+          >
+            {{ targetDescriptionSaving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -793,6 +969,32 @@ interface ProductImage {
   is_primary: boolean;
 }
 
+interface TargetType {
+  id: string;
+  name: string;
+  placeholder: string | null;
+  default_template: string | null;
+  sort_order: number;
+}
+
+interface SavedTargetDescription {
+  id: string;
+  user_id: string;
+  target_type_id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
+interface HistoryItem {
+  id: string;
+  prompt: string;
+  image_url: string | null;
+  model: string;
+  created_at: string;
+}
+
 interface Toast {
   id: number;
   message: string;
@@ -805,6 +1007,15 @@ interface TemplateOption {
   id: string;
   label: string;
 }
+
+// Default target types (fallback when API fails)
+const DEFAULT_TARGET_TYPES: TargetType[] = [
+  { id: 'target-main', name: '主图', placeholder: '请描述主图的展示重点，如产品摆放方式、突出的卖点...', default_template: '适合电商主图展示的产品图，突出产品整体外观，简洁大方', sort_order: 0 },
+  { id: 'target-detail', name: '详情页', placeholder: '请描述详情页需要展示的产品细节或使用场景...', default_template: '适合详情页的产品展示图，展现产品细节和使用场景', sort_order: 1 },
+  { id: 'target-poster', name: '海报', placeholder: '请描述海报的主题和风格，如促销活动、节日氛围...', default_template: '具有视觉冲击力的营销海报风格，适合活动推广', sort_order: 2 },
+  { id: 'target-white', name: '白底图', placeholder: '请描述白底图的拍摄角度和展示方式...', default_template: '纯白色背景的产品图，适合平台商品展示', sort_order: 3 },
+  { id: 'target-scene', name: '场景图', placeholder: '请描述期望的使用场景和环境氛围...', default_template: '产品在真实使用场景中的展示图，增强代入感', sort_order: 4 }
+];
 
 // Default template options
 const DEFAULT_TEMPLATES: Record<TemplateCategory, TemplateOption[]> = {
@@ -839,7 +1050,7 @@ const DEFAULT_TEMPLATES: Record<TemplateCategory, TemplateOption[]> = {
 };
 
 // Default extra prompt text
-const DEFAULT_PROMPT_TEMPLATE = '高清产品摄影';
+const DEFAULT_PROMPT_TEMPLATE = '';
 
 // State
 const apiConfig = reactive({
@@ -850,7 +1061,8 @@ const apiConfig = reactive({
 const modelConfig = reactive({
   model: 'gemini-3-pro-image-preview',
   aspectRatio: '',
-  imageSize: '1K'
+  imageSize: '1K',
+  generateCount: 1
 });
 
 const steps = [
@@ -873,6 +1085,19 @@ const totalProducts = ref(0);
 const selectedProduct = ref<Product | null>(null);
 const productImages = ref<ProductImage[]>([]);
 const selectedImages = ref<string[]>([]);
+const selectingProductId = ref<string | null>(null);
+
+// Generation History
+const generationHistory = ref<HistoryItem[]>([]);
+const loadingHistory = ref(false);
+const placeholderImage = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="#1a1a2e"/>
+  <rect x="25" y="25" width="50" height="50" rx="4" fill="none" stroke="#4a4a6a" stroke-width="2"/>
+  <circle cx="38" cy="38" r="5" fill="#4a4a6a"/>
+  <path d="M25 65 L45 45 L55 55 L75 35 L75 75 L25 75 Z" fill="#4a4a6a" opacity="0.5"/>
+</svg>
+`);
 
 // Editable product fields
 const editableProduct = reactive({
@@ -880,6 +1105,27 @@ const editableProduct = reactive({
   dimensions: '',
   featuresText: '',
   characteristicsText: ''
+});
+
+// Target types
+const targetTypes = ref<TargetType[]>([]);
+const loadingTargetTypes = ref(false);
+const selectedTargetTypeId = ref<string | null>(null);
+const targetDescription = ref('');
+const targetDescriptionLoading = ref(false);
+const targetDescriptionSaving = ref(false);
+const savedDescriptions = ref<SavedTargetDescription[]>([]);
+const showSaveDialog = ref(false);
+const currentSavedDescriptionId = ref<string | null>(null);
+const saveDescriptionName = ref('');
+
+const selectedTargetType = computed(() => {
+  if (!selectedTargetTypeId.value) return null;
+  return targetTypes.value.find(t => t.id === selectedTargetTypeId.value) || null;
+});
+
+const targetPlaceholder = computed(() => {
+  return selectedTargetType.value?.placeholder || '请描述您期望的生成效果...';
 });
 
 const fieldToggles = reactive({
@@ -923,7 +1169,8 @@ const promptTemplate = ref(DEFAULT_PROMPT_TEMPLATE);
 
 // Generation
 const generating = ref(false);
-const generatedImage = ref('');
+const generatedImages = ref<string[]>([]);
+const generationProgress = ref({ current: 0, total: 0 });
 const errorMessage = ref('');
 const toasts = ref<Toast[]>([]);
 
@@ -971,7 +1218,7 @@ const hasTemplateSelection = computed(() => {
   return selectedTemplates.scene.length > 0 ||
     selectedTemplates.angle.length > 0 ||
     selectedTemplates.style.length > 0 ||
-    selectedTemplates.target.length > 0;
+    !!selectedTargetTypeId.value;
 });
 
 function getGroupSummary(category: TemplateCategory): string {
@@ -1019,7 +1266,7 @@ const promptSegments = computed(() => ({
   scene: selectedLabels.value.scene,
   angle: selectedLabels.value.angle,
   style: selectedLabels.value.style,
-  target: selectedLabels.value.target
+  target: targetDescription.value ? [targetDescription.value] : []
 }));
 
 function formatKeyedSegment(label: string, values: string[]): string {
@@ -1066,8 +1313,9 @@ const composedPrompt = computed(() => {
   const styleSegment = formatKeyedSegment('风格', selectedLabels.value.style);
   if (styleSegment) segments.push(styleSegment);
 
-  const targetSegment = formatKeyedSegment('生成目标', selectedLabels.value.target);
-  if (targetSegment) segments.push(targetSegment);
+  // Add target description directly (without the target type name)
+  const targetDesc = targetDescription.value.trim();
+  if (targetDesc) segments.push(targetDesc);
 
   const extraText = sanitizePromptTemplate(promptTemplate.value);
   if (extraText) segments.push(extraText);
@@ -1100,7 +1348,7 @@ function isStepComplete(stepId: number): boolean {
     return composedPrompt.value.length > 0;
   }
   if (stepId === 4) {
-    return generatedImage.value.length > 0;
+    return generatedImages.value.length > 0;
   }
   return false;
 }
@@ -1147,13 +1395,18 @@ function normalizeBaseUrl(value: string): string | null {
   return raw || null;
 }
 
-function extractImageUrl(payload: any): string | null {
+function extractImageUrl(payload: any, imageId?: string): string | null {
   if (!payload || typeof payload !== 'object') return null;
   if (Array.isArray(payload.data) && payload.data[0]) {
     const item = payload.data[0];
+    // If we have imageId, use API endpoint
+    if (imageId) return `/api/v1/images/${imageId}/data/0`;
+    if (item?.saved_url) return item.saved_url;
     if (item?.url) return item.url;
     if (item?.b64_json) return `data:image/png;base64,${item.b64_json}`;
   }
+  if (imageId && payload.b64_json) return `/api/v1/images/${imageId}/data/0`;
+  if (payload.saved_url) return payload.saved_url;
   if (payload.url) return payload.url;
   if (payload.b64_json) return `data:image/png;base64,${payload.b64_json}`;
   if (payload.image_url) return payload.image_url;
@@ -1194,6 +1447,233 @@ function searchProducts() {
   fetchProducts();
 }
 
+// Generation History functions
+async function fetchHistory() {
+  loadingHistory.value = true;
+  try {
+    const res = await fetch('/api/v1/images?limit=20', {
+      credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to fetch history');
+    const data = await res.json();
+    const items: HistoryItem[] = data || [];
+
+    // For items without image_url, try to fetch the full record to get the image
+    const itemsWithMissingImages = items.filter(item => !item.image_url);
+    if (itemsWithMissingImages.length > 0) {
+      // Fetch details for items missing image_url (in parallel, max 5)
+      const fetchPromises = itemsWithMissingImages.slice(0, 5).map(async (item) => {
+        try {
+          const detailRes = await fetch(`/api/v1/images/${item.id}`, {
+            credentials: 'include'
+          });
+          if (detailRes.ok) {
+            const detail = await detailRes.json();
+            const imageUrl = extractImageUrl(detail.response, item.id);
+            if (imageUrl) {
+              item.image_url = imageUrl;
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to fetch image detail:', e);
+        }
+      });
+      await Promise.all(fetchPromises);
+    }
+
+    generationHistory.value = items;
+  } catch (e) {
+    console.error('Failed to load history:', e);
+  } finally {
+    loadingHistory.value = false;
+  }
+}
+
+async function loadHistoryItem(item: HistoryItem) {
+  // If we already have the image URL (API endpoint), use it directly
+  if (item.image_url) {
+    generatedImages.value = [item.image_url];
+    currentStep.value = 4;
+    return;
+  }
+
+  // Otherwise, fetch the full record to get the image from response
+  try {
+    const res = await fetch(`/api/v1/images/${item.id}`, {
+      credentials: 'include'
+    });
+    if (!res.ok) throw new Error('Failed to fetch image detail');
+
+    const detail = await res.json();
+    const imageUrl = extractImageUrl(detail.response, item.id);
+
+    if (imageUrl) {
+      generatedImages.value = [imageUrl];
+      // Update the cache
+      item.image_url = imageUrl;
+      currentStep.value = 4;
+    } else {
+      showToast('无法加载图片数据', 'error');
+    }
+  } catch (e) {
+    showToast('加载图片失败', 'error');
+  }
+}
+
+function truncateText(text: string, length: number): string {
+  if (!text) return '';
+  if (text.length <= length) return text;
+  return text.substring(0, length) + '...';
+}
+
+function formatHistoryDate(dateStr: string): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+async function fetchTargetTypes() {
+  loadingTargetTypes.value = true;
+  try {
+    const res = await fetch('/api/v1/target-types', {
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch target types');
+    }
+
+    const data = await res.json();
+    targetTypes.value = data.target_types || [];
+  } catch (e) {
+    console.warn('Failed to load target types from API, using defaults');
+    targetTypes.value = [...DEFAULT_TARGET_TYPES];
+  } finally {
+    loadingTargetTypes.value = false;
+  }
+}
+
+async function loadSavedDescriptions(targetId: string) {
+  if (!targetId) {
+    savedDescriptions.value = [];
+    return;
+  }
+  try {
+    const res = await fetch(`/api/v1/target-descriptions?target_type_id=${encodeURIComponent(targetId)}`, {
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch saved descriptions');
+    }
+
+    const data = await res.json();
+    savedDescriptions.value = data.descriptions || [];
+  } catch (e) {
+    console.warn('Failed to load saved descriptions:', e);
+    savedDescriptions.value = [];
+  }
+}
+
+function loadSavedDescription(saved: SavedTargetDescription) {
+  targetDescription.value = saved.description;
+  currentSavedDescriptionId.value = saved.id;
+}
+
+async function saveNewDescription() {
+  const targetId = selectedTargetTypeId.value;
+  const name = saveDescriptionName.value.trim();
+  const desc = targetDescription.value.trim();
+
+  if (!targetId || !name || !desc) {
+    showToast('请填写名称和描述', 'error');
+    return;
+  }
+
+  targetDescriptionSaving.value = true;
+  try {
+    const payload = {
+      target_type_id: targetId,
+      name: name,
+      description: desc
+    };
+
+    const res = await fetch('/api/v1/target-descriptions', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrfToken()
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP ${res.status}`);
+    }
+
+    const newDesc: SavedTargetDescription = await res.json();
+    savedDescriptions.value.unshift(newDesc);
+    currentSavedDescriptionId.value = newDesc.id;
+    showSaveDialog.value = false;
+    saveDescriptionName.value = '';
+    showToast('描述已保存', 'success');
+  } catch (e: any) {
+    showToast(e.message || '保存描述失败', 'error');
+  } finally {
+    targetDescriptionSaving.value = false;
+  }
+}
+
+async function deleteSavedDescription(descriptionId: string) {
+  if (!confirm('确定要删除这个保存的描述吗？')) return;
+
+  try {
+    const res = await fetch(`/api/v1/target-descriptions/${descriptionId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {
+        'X-CSRF-Token': getCsrfToken()
+      }
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP ${res.status}`);
+    }
+
+    savedDescriptions.value = savedDescriptions.value.filter(d => d.id !== descriptionId);
+    if (currentSavedDescriptionId.value === descriptionId) {
+      currentSavedDescriptionId.value = null;
+    }
+    showToast('描述已删除', 'success');
+  } catch (e: any) {
+    showToast(e.message || '删除描述失败', 'error');
+  }
+}
+
+function resetToDefaultTemplate() {
+  const target = selectedTargetType.value;
+  if (target) {
+    targetDescription.value = target.default_template || '';
+    currentSavedDescriptionId.value = null;
+  }
+}
+
+async function selectTargetType(targetId: string) {
+  const prev = selectedTargetTypeId.value;
+  selectedTargetTypeId.value = targetId;
+
+  // Auto-fill default template when selecting a new target type
+  if (prev !== targetId) {
+    currentSavedDescriptionId.value = null;
+    const target = targetTypes.value.find(t => t.id === targetId);
+    targetDescription.value = target?.default_template || '';
+    await loadSavedDescriptions(targetId);
+  }
+}
+
 function prevPage() {
   if (currentPage.value > 1) {
     currentPage.value--;
@@ -1217,7 +1697,11 @@ function getProductThumbnail(product: Product): string {
 }
 
 async function selectProduct(product: Product) {
-  selectedProduct.value = product;
+  if (!product?.id) return;
+  if (selectedProduct.value?.id === product.id) return;
+  if (selectingProductId.value) return;
+
+  selectingProductId.value = product.id;
 
   // Load full product details
   try {
@@ -1230,6 +1714,7 @@ async function selectProduct(product: Product) {
     }
 
     const detail = await res.json();
+    selectedProduct.value = detail;
 
     // Update editable fields
     editableProduct.name = detail.name || '';
@@ -1258,6 +1743,8 @@ async function selectProduct(product: Product) {
     }
   } catch (e) {
     showToast('加载产品详情失败', 'error');
+  } finally {
+    selectingProductId.value = null;
   }
 }
 
@@ -1466,83 +1953,130 @@ async function generateImage() {
 
   generating.value = true;
   errorMessage.value = '';
+  generatedImages.value = [];
+
+  const count = modelConfig.generateCount;
+  generationProgress.value = { current: 0, total: count };
 
   try {
-    // Prepare form data
-    const formData = new FormData();
-    formData.append('prompt', composedPrompt.value);
-    formData.append('model', modelConfig.model);
-    formData.append('response_format', 'url');
+    // Prepare base form data elements
+    const baseHeaders: Record<string, string> = {
+      'X-CSRF-Token': getCsrfToken()
+    };
+    const apiKey = normalizeApiKey(apiConfig.apiKey);
+    if (apiKey) baseHeaders['X-API-Key'] = apiKey;
+    const baseUrl = normalizeBaseUrl(apiConfig.baseUrl);
+    if (baseUrl) baseHeaders['X-Base-Url'] = baseUrl;
 
-    if (modelConfig.aspectRatio) {
-      formData.append('aspect_ratio', modelConfig.aspectRatio);
-    }
-    if (modelConfig.imageSize) {
-      formData.append('image_size', modelConfig.imageSize);
-    }
-
-    // Add selected images
+    // Fetch reference images once
+    const imageBlobs: { id: string; blob: Blob }[] = [];
     for (const imageId of selectedImages.value) {
       const img = productImages.value.find(i => i.id === imageId);
       if (img) {
-        // Fetch the image and add it to form data
         try {
           const imgRes = await fetch(img.image_url);
           const imgBlob = await imgRes.blob();
-          formData.append('image', imgBlob, `ref-${imageId}.jpg`);
+          imageBlobs.push({ id: imageId, blob: imgBlob });
         } catch (e) {
           console.warn('Failed to fetch reference image:', img.image_url);
         }
       }
     }
 
-    const headers: Record<string, string> = {
-      'X-CSRF-Token': getCsrfToken()
+    // Create generation promise for a single image
+    const generateOne = async (): Promise<string | null> => {
+      const formData = new FormData();
+      formData.append('prompt', composedPrompt.value);
+      formData.append('model', modelConfig.model);
+      formData.append('response_format', 'url');
+
+      if (modelConfig.aspectRatio) {
+        formData.append('aspect_ratio', modelConfig.aspectRatio);
+      }
+      if (modelConfig.imageSize) {
+        formData.append('image_size', modelConfig.imageSize);
+      }
+
+      // Add reference images
+      for (const { id, blob } of imageBlobs) {
+        formData.append('image', blob, `ref-${id}.jpg`);
+      }
+
+      const res = await fetch('/api/v1/images/edits', {
+        method: 'POST',
+        credentials: 'include',
+        headers: baseHeaders,
+        body: formData
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const imageId = data.id;  // Get the image ID from response
+      const payload = data && typeof data === 'object' && data.response ? data.response : data;
+      const imageUrl = extractImageUrl(payload, imageId) || extractImageUrl(data, imageId);
+
+      generationProgress.value.current++;
+      return imageUrl;
     };
-    const apiKey = normalizeApiKey(apiConfig.apiKey);
-    if (apiKey) headers['X-API-Key'] = apiKey;
-    const baseUrl = normalizeBaseUrl(apiConfig.baseUrl);
-    if (baseUrl) headers['X-Base-Url'] = baseUrl;
 
-    const res = await fetch('/api/v1/images/edits', {
-      method: 'POST',
-      credentials: 'include',
-      headers,
-      body: formData
-    });
+    // Run generations concurrently
+    const promises = Array.from({ length: count }, () => generateOne());
+    const results = await Promise.allSettled(promises);
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || `HTTP ${res.status}`);
+    const successfulImages: string[] = [];
+    const errors: string[] = [];
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        successfulImages.push(result.value);
+      } else if (result.status === 'rejected') {
+        errors.push(result.reason?.message || '生成失败');
+      }
     }
 
-    const data = await res.json();
-    const payload = data && typeof data === 'object' && data.response ? data.response : data;
-    const imageUrl = extractImageUrl(payload) || extractImageUrl(data);
-
-    if (imageUrl) {
-      generatedImage.value = imageUrl;
+    if (successfulImages.length > 0) {
+      generatedImages.value = successfulImages;
+      showToast(`成功生成 ${successfulImages.length} 张图片`, 'success');
+      // Refresh history to show the new images
+      fetchHistory();
+    } else if (errors.length > 0) {
+      throw new Error(errors[0]);
     } else {
       throw new Error('Invalid response format');
     }
-
-    showToast('图片生成成功', 'success');
   } catch (e: any) {
     errorMessage.value = e.message || '生成失败，请重试';
   } finally {
     generating.value = false;
+    generationProgress.value = { current: 0, total: 0 };
   }
 }
 
-function downloadImage() {
-  if (!generatedImage.value) return;
+function downloadSingleImage(imageUrl: string, index: number) {
+  if (!imageUrl) return;
 
   const link = document.createElement('a');
-  link.href = generatedImage.value;
-  link.download = `ecommerce-${Date.now()}.png`;
+  link.href = imageUrl;
+  link.download = `ecommerce-${Date.now()}-${index + 1}.png`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+async function downloadAllImages() {
+  if (generatedImages.value.length === 0) return;
+
+  for (let i = 0; i < generatedImages.value.length; i++) {
+    downloadSingleImage(generatedImages.value[i], i);
+    // Small delay between downloads to avoid browser issues
+    if (i < generatedImages.value.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  }
 }
 
 let toastId = 0;
@@ -1577,6 +2111,8 @@ onMounted(() => {
   loadPromptTemplate();
   loadApiConfig();
   fetchProducts();
+  fetchTargetTypes();
+  fetchHistory();
   initializeTemplateGroups(true);
 });
 </script>

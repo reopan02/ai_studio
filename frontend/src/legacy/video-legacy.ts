@@ -2,9 +2,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
     const els = {
-        apiKey: document.getElementById('apiKey'),
-        baseUrl: document.getElementById('baseUrl'),
-        toggleApiKey: document.getElementById('toggleApiKey'),
         modelSelect: document.getElementById('modelSelect'),
         promptInput: document.getElementById('promptInput'),
         taskNameInput: document.getElementById('taskNameInput'),
@@ -60,8 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
         historyBtn: document.getElementById('historyBtn'),
         historyPanel: document.getElementById('historyPanel'),
         closeHistoryBtn: document.getElementById('closeHistoryBtn'),
-        saveConfigBtn: document.getElementById('saveConfigBtn'),
-        resetConfigBtn: document.getElementById('resetConfigBtn'),
         charCount: document.getElementById('charCount'),
         statusDot: document.getElementById('statusDot'),
         statusText: document.getElementById('statusText'),
@@ -114,15 +109,57 @@ document.addEventListener('DOMContentLoaded', () => {
         saveQueue: createRequestQueue(CONFIG.saveConcurrency)
     };
 
-    // Load Config
-    els.apiKey.value = localStorage.getItem('video_api_key') || '';
-    const defaultBaseUrl = els.baseUrl.value || 'https://api.gpt-best.com';
-    const savedBaseUrl = localStorage.getItem('video_base_url') || defaultBaseUrl;
-    try {
-        els.baseUrl.value = normalizeApiBaseUrl(savedBaseUrl);
-    } catch {
-        els.baseUrl.value = defaultBaseUrl;
-        localStorage.removeItem('video_base_url');
+    const STORAGE_KEYS = {
+        apiKey: 'global_api_key',
+        baseUrl: 'global_base_url'
+    };
+
+    const apiConfig = {
+        apiKey: '',
+        baseUrl: ''
+    };
+
+    function readLocalConfig() {
+        return {
+            apiKey: localStorage.getItem(STORAGE_KEYS.apiKey) || localStorage.getItem('video_api_key') || localStorage.getItem('apiKey') || '',
+            baseUrl: localStorage.getItem(STORAGE_KEYS.baseUrl) || localStorage.getItem('video_base_url') || localStorage.getItem('baseUrl') || ''
+        };
+    }
+
+    async function fetchEnvConfig() {
+        try {
+            const res = await fetch('/api/v1/provider-config', { credentials: 'include' });
+            if (!res.ok) return { apiKey: '', baseUrl: '' };
+            const data = await res.json();
+            return {
+                apiKey: String(data?.api_key || ''),
+                baseUrl: String(data?.base_url || '')
+            };
+        } catch (e) {
+            console.warn('[config] Failed to load env defaults', e);
+            return { apiKey: '', baseUrl: '' };
+        }
+    }
+
+    async function loadApiConfig() {
+        const local = readLocalConfig();
+        apiConfig.apiKey = local.apiKey;
+        apiConfig.baseUrl = local.baseUrl;
+
+        if (!apiConfig.apiKey || !apiConfig.baseUrl) {
+            const envConfig = await fetchEnvConfig();
+            if (!apiConfig.apiKey && envConfig.apiKey) apiConfig.apiKey = envConfig.apiKey;
+            if (!apiConfig.baseUrl && envConfig.baseUrl) apiConfig.baseUrl = envConfig.baseUrl;
+        }
+    }
+
+    let apiConfigReady = loadApiConfig();
+
+    async function ensureApiConfig() {
+        if (apiConfigReady) await apiConfigReady;
+        const local = readLocalConfig();
+        if (local.apiKey) apiConfig.apiKey = local.apiKey;
+        if (local.baseUrl) apiConfig.baseUrl = local.baseUrl;
     }
 
     // Load persisted UI state
@@ -321,19 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     }
 
-    els.apiKey.addEventListener('change', () => localStorage.setItem('video_api_key', els.apiKey.value));
-    els.baseUrl.addEventListener('change', () => {
-        try {
-            const normalized = normalizeApiBaseUrl(els.baseUrl.value);
-            els.baseUrl.value = normalized;
-            localStorage.setItem('video_base_url', normalized);
-        } catch (e) {
-            log(`错误: ${e.message}`, 'error');
-            localStorage.removeItem('video_base_url');
-            els.baseUrl.focus();
-        }
-    });
-
     // Persist UI state changes
     els.modelSelect.addEventListener('change', () => {
         localStorage.setItem('video_model', els.modelSelect.value);
@@ -476,33 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(`collapsed_${targetId}`, String(isCollapsed));
         });
     });
-
-    // Config save/reset buttons
-    if (els.saveConfigBtn) {
-        els.saveConfigBtn.addEventListener('click', () => {
-            localStorage.setItem('video_api_key', els.apiKey.value);
-            try {
-                const normalized = normalizeApiBaseUrl(els.baseUrl.value);
-                localStorage.setItem('video_base_url', normalized);
-                els.baseUrl.value = normalized;
-            } catch (e) {
-                log(`Base URL 错误: ${e.message}`, 'error');
-            }
-            toast('配置已保存', 'success');
-        });
-    }
-
-    if (els.resetConfigBtn) {
-        els.resetConfigBtn.addEventListener('click', () => {
-            if (confirm('确定要重置配置吗？这将清除保存的 API Key 和 Base URL。')) {
-                localStorage.removeItem('video_api_key');
-                localStorage.removeItem('video_base_url');
-                els.apiKey.value = '';
-                els.baseUrl.value = 'https://api.gpt-best.com';
-                toast('配置已重置', 'info');
-            }
-        });
-    }
 
     // Character count update
     if (els.promptInput && els.charCount) {
@@ -2775,14 +2772,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return task;
     }
 
-    function handleSubmit() {
+    async function handleSubmit() {
         const now = Date.now();
         if (now - tasksState.lastSubmitAt < CONFIG.submitDebounceMs) return;
         tasksState.lastSubmitAt = now;
 
         const requiredEls = [
-            ['apiKey', els.apiKey],
-            ['baseUrl', els.baseUrl],
             ['promptInput', els.promptInput],
             ['modelSelect', els.modelSelect],
             ['batchCount', els.batchCount],
@@ -2795,22 +2790,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const apiKey = normalizeApiKey(els.apiKey.value);
+        await ensureApiConfig();
+
+        const apiKey = normalizeApiKey(apiConfig.apiKey);
         if (!apiKey) {
-            toast('请先输入 API Key', 'error');
-            els.apiKey.focus();
+            toast('??????? API Key ??????? API_KEY', 'error');
             return;
         }
 
         let baseUrl;
         try {
-            baseUrl = normalizeApiBaseUrl(els.baseUrl.value);
+            baseUrl = normalizeApiBaseUrl(apiConfig.baseUrl);
         } catch (e) {
-            toast(e.message || 'Base URL 无效', 'error');
-            els.baseUrl.focus();
+            const hint = '?????? Base URL ??????? API_BASE_URL';
+            toast(`${e.message || 'Base URL ??'}?${hint}`, 'error');
             return;
         }
-
         const prompt = els.promptInput.value.trim();
         if (!prompt) {
             toast('请输入提示词', 'error');

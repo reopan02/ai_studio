@@ -345,3 +345,62 @@ class ProductListResponse(BaseModel):
     offset: int
     limit: int
 
+
+# Target Type schemas
+class TargetTypeCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    placeholder: Optional[str] = Field(default=None, max_length=500)
+    default_template: Optional[str] = Field(default=None, max_length=1000)
+    sort_order: Optional[int] = Field(default=0, ge=0)
+
+
+class TargetTypeUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    placeholder: Optional[str] = Field(default=None, max_length=500)
+    default_template: Optional[str] = Field(default=None, max_length=1000)
+    sort_order: Optional[int] = Field(default=None, ge=0)
+
+
+class TargetTypeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    placeholder: Optional[str] = None
+    default_template: Optional[str] = None
+    sort_order: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class TargetTypeListResponse(BaseModel):
+    target_types: List[TargetTypeOut]
+
+
+# User Target Description schemas
+class UserTargetDescriptionCreate(BaseModel):
+    target_type_id: str
+    name: str = Field(min_length=1, max_length=100)
+    description: str = Field(min_length=1, max_length=2000)
+
+
+class UserTargetDescriptionUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, min_length=1, max_length=2000)
+
+
+class UserTargetDescriptionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    user_id: str
+    target_type_id: str
+    name: str
+    description: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class UserTargetDescriptionListResponse(BaseModel):
+    descriptions: List[UserTargetDescriptionOut]
+

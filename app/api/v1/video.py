@@ -18,6 +18,15 @@ def get_task_manager() -> TaskManager:
     return TaskManager(api_key=settings.API_KEY)
 
 
+@router.get("/provider-config")
+async def provider_config(user: User = Depends(get_current_user)):
+    settings = get_settings()
+    return {
+        "api_key": settings.API_KEY or "",
+        "base_url": settings.API_BASE_URL or "",
+    }
+
+
 @router.post("/video/generate", response_model=TaskResponse)
 async def generate_video(
     request: VideoGenerationRequest,

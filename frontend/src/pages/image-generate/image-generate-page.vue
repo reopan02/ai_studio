@@ -306,19 +306,42 @@ function normalizeBaseUrl(value: string): string | null {
   return raw || null;
 }
 
-function extractImageUrls(payload: any): string[] {
+function extractImageUrls(payload: any, imageId?: string): string[] {
   if (!payload || typeof payload !== 'object') return [];
   const urls: string[] = [];
 
   if (Array.isArray(payload.data)) {
-    for (const item of payload.data) {
-      if (item?.url) urls.push(item.url);
-      else if (item?.b64_json) urls.push(`data:image/png;base64,${item.b64_json}`);
+    for (let i = 0; i < payload.data.length; i++) {
+      const item = payload.data[i];
+      // If we have imageId, use API endpoint
+      if (imageId) {
+        urls.push(`/api/v1/images/${imageId}/data/${i}`);
+      } else if (item?.saved_url) {
+        urls.push(item.saved_url);
+      } else if (item?.url) {
+        urls.push(item.url);
+      } else if (item?.b64_json) {
+        urls.push(`data:image/png;base64,${item.b64_json}`);
+      }
     }
   }
-  if (payload.url) urls.push(payload.url);
-  if (payload.b64_json) urls.push(`data:image/png;base64,${payload.b64_json}`);
-  if (payload.image_url) urls.push(payload.image_url);
+
+  // If no data array but has b64_json
+  if (urls.length === 0) {
+    if (imageId && payload.b64_json) {
+      urls.push(`/api/v1/images/${imageId}/data/0`);
+    } else if (payload.saved_url) {
+      urls.push(payload.saved_url);
+    } else if (payload.url) {
+      urls.push(payload.url);
+    } else if (payload.b64_json) {
+      urls.push(`data:image/png;base64,${payload.b64_json}`);
+    }
+  }
+
+  if (payload.image_url && !urls.includes(payload.image_url)) {
+    urls.push(payload.image_url);
+  }
 
   return urls;
 }
@@ -339,8 +362,30 @@ async function fetchHistory() {
   }
 }
 
-function loadHistoryItem(item: HistoryItem) {
+async function loadHistoryItem(item: HistoryItem) {
   prompt.value = item.prompt || '';
+
+  // Try to fetch full details to get all generated images
+  try {
+    const res = await fetch(`/api/v1/images/${item.id}`, {
+      credentials: 'include'
+    });
+    if (res.ok) {
+      const detail = await res.json();
+      // Extract all images from response using imageId for API URLs
+      if (detail.response) {
+        const urls = extractImageUrls(detail.response, item.id);
+        if (urls.length > 0) {
+          generatedImages.value = urls;
+          return;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch image detail:', e);
+  }
+
+  // Fallback to thumbnail URL (which is now an API endpoint)
   if (item.image_url) {
     generatedImages.value = [item.image_url];
   }
@@ -406,12 +451,13 @@ async function generateImage() {
     }
 
     const data = await res.json();
+    const imageId = data.id;  // Get the image ID from response
     const payload = data && typeof data === 'object' && data.response ? data.response : data;
-    const urls = extractImageUrls(payload);
+    const urls = extractImageUrls(payload, imageId);
 
     if (urls.length === 0) {
-      // Try extracting from top level
-      const topUrls = extractImageUrls(data);
+      // Try extracting from top level with imageId
+      const topUrls = extractImageUrls(data, imageId);
       if (topUrls.length > 0) {
         generatedImages.value = topUrls;
       } else {

@@ -44,67 +44,6 @@
       <div class="main-container">
           <!-- Sidebar -->
           <aside class="sidebar">
-              <!-- Config Section -->
-              <section class="sidebar-section config-section">
-                  <div class="section-title collapsible-header" data-target="configContent">
-                      <span style="display: flex; align-items: center; gap: 8px;">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
-                              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/>
-                          </svg>
-                          API Configuration
-                      </span>
-                      <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                  </div>
-                  <div class="collapsible-content" id="configContent">
-                      <div class="config-content-inner">
-                          <div class="form-group">
-                              <label class="form-label">API Key</label>
-                              <div class="input-wrapper">
-                                  <input type="password" class="form-input" id="apiKey" placeholder="Enter your API key" autocomplete="current-password">
-                                  <button class="toggle-visibility" data-target="apiKey">
-                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                          <circle cx="12" cy="12" r="3"/>
-                                      </svg>
-                                  </button>
-                              </div>
-                              <div class="form-hint">Authorization: Bearer &lt;key&gt;</div>
-                          </div>
-                          <div class="form-group">
-                              <label class="form-label">Base URL</label>
-                              <div class="input-wrapper">
-                                  <input type="password" class="form-input" id="baseUrl" placeholder="https://api.gpt-best.com" value="https://api.gpt-best.com">
-                                  <button class="toggle-visibility" data-target="baseUrl">
-                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                          <circle cx="12" cy="12" r="3"/>
-                                      </svg>
-                                  </button>
-                              </div>
-                          </div>
-                          <div class="btn-group" style="margin-top: 16px;">
-                              <button class="btn btn-primary" id="saveConfigBtn">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                                      <polyline points="17 21 17 13 7 13 7 21"/>
-                                      <polyline points="7 3 7 8 15 8"/>
-                                  </svg>
-                                  Save
-                              </button>
-                              <button class="btn btn-secondary" id="resetConfigBtn">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                      <polyline points="1 4 1 10 7 10"/>
-                                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-                                  </svg>
-                                  Reset
-                              </button>
-                          </div>
-                      </div>
-                  </div>
-              </section>
   
               <!-- Model Selection -->
               <section class="sidebar-section">

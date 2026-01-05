@@ -256,3 +256,36 @@ class ProductImage(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class TargetType(Base):
+    """Target types for ecommerce image generation with customizable prompt templates."""
+    __tablename__ = "target_types"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String(100), nullable=False, unique=True)
+    placeholder = Column(Text, nullable=True)
+    default_template = Column(Text, nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class UserTargetDescription(Base):
+    """Per-user saved target descriptions for ecommerce image generation."""
+    __tablename__ = "user_target_descriptions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_type_id = Column(
+        String(36),
+        ForeignKey("target_types.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

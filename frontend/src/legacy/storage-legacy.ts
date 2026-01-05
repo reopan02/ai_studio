@@ -132,20 +132,26 @@
             const title = escapeHtml(img.title || '未命名图像');
             const prompt = escapeHtml(img.prompt || '');
             const imageUrl = String(img.image_url || '');
+            const imageId = escapeHtml(img.id || '');
 
-            const media = imageUrl
-                ? `<img src="${imageUrl}" alt="${title}" loading="lazy" />`
+            // If no image_url, try to build API URL from id
+            const displayUrl = imageUrl || (imageId ? `/api/v1/images/${imageId}/data/0` : '');
+
+            const media = displayUrl
+                ? `<img src="${displayUrl}" alt="${title}" loading="lazy" />`
                 : `<div style="color: #cbd5e1; font-size: 14px;">无预览</div>`;
 
-            const download = imageUrl
-                ? `<a href="${imageUrl}" download class="btn btn-secondary btn-sm" style="text-decoration: none; flex: 1; justify-content: center;">
+            // Use API endpoint for download
+            const downloadUrl = imageId ? `/api/v1/images/${imageId}/data/0` : displayUrl;
+            const download = downloadUrl
+                ? `<button onclick="StoragePage.downloadImage('${imageId}', '${escapeHtml(title)}')" class="btn btn-secondary btn-sm" style="flex: 1; justify-content: center;">
                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                            <polyline points="7 10 12 15 17 10"/>
                            <line x1="12" y1="15" x2="12" y2="3"/>
                        </svg>
                        下载
-                   </a>`
+                   </button>`
                 : ``;
 
             return `
@@ -162,7 +168,7 @@
                         <div class="video-prompt" title="${prompt}">${prompt}</div>
                         <div class="video-actions">
                             ${download}
-                            <button onclick="StoragePage.deleteImageAndReload('${escapeHtml(img.id)}')" class="btn btn-secondary btn-sm danger" style="flex: 1; justify-content: center;">
+                            <button onclick="StoragePage.deleteImageAndReload('${imageId}')" class="btn btn-secondary btn-sm danger" style="flex: 1; justify-content: center;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="3 6 5 6 21 6"/>
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -297,6 +303,35 @@
         }
     }
 
+    async function downloadImage(imageId, title) {
+        if (!imageId) return;
+        try {
+            const url = `/api/v1/images/${imageId}/data/0`;
+            const res = await fetch(url, { credentials: 'include' });
+            if (!res.ok) {
+                throw new Error('下载失败');
+            }
+            const blob = await res.blob();
+            const contentType = res.headers.get('content-type') || 'image/png';
+            const ext = contentType.includes('jpeg') ? 'jpg' :
+                        contentType.includes('webp') ? 'webp' :
+                        contentType.includes('gif') ? 'gif' : 'png';
+
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `${title || 'image'}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
+        } catch (e) {
+            if (typeof alert === 'function') {
+                alert(e?.message || '下载失败');
+            }
+        }
+    }
+
     function init() {
         if (typeof document === 'undefined') return;
         document.addEventListener('DOMContentLoaded', () => {
@@ -318,6 +353,7 @@
         deleteImage,
         deleteVideoAndReload,
         deleteImageAndReload,
+        downloadImage,
         init,
         _test: { escapeHtml, readError, renderEmpty, renderVideos }
     };

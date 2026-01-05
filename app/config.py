@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     ENV: str = "development"
 
-    API_BASE_URL: str = "https://api.gpt-best.com"
+    API_BASE_URL: str
     API_KEY: str
     LLM_MODEL: str = "openai/gpt-4o-mini"
 

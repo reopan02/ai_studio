@@ -82,7 +82,33 @@
 import { onMounted } from 'vue';
 import { getCurrentUser } from '@/shared/auth';
 
+// Import for side effects - registers StoragePage on window
+import '@/legacy/storage-legacy';
+
+// Access global StoragePage
+declare global {
+  interface Window {
+    StoragePage: {
+      loadVideos: (opts?: { onUnauthorized?: () => void }) => Promise<void>;
+      loadImages: (opts?: { onUnauthorized?: () => void }) => Promise<void>;
+      deleteImageAndReload: (id: string) => Promise<void>;
+      downloadImage: (imageId: string, title: string) => Promise<void>;
+    };
+  }
+}
+
 onMounted(async () => {
+  // Load videos and images
+  if (window.StoragePage) {
+    window.StoragePage.loadVideos({
+      onUnauthorized: () => { window.location.href = '/login?next=/storage'; }
+    });
+    window.StoragePage.loadImages({
+      onUnauthorized: () => { window.location.href = '/login?next=/storage'; }
+    });
+  }
+
+  // Check admin status
   const adminLink = document.getElementById('adminLink');
   if (!adminLink) return;
   try {

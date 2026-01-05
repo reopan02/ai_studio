@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
 from typing import Any, Optional
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
@@ -47,19 +50,71 @@ def _is_http_url(value: str) -> bool:
     return parsed.scheme.lower() in {"http", "https"} and bool(parsed.netloc)
 
 
-def _extract_first_image_url(response_json: Any) -> str | None:
+def _count_images_in_response(response_json: Any) -> int:
+    """Count the number of images in the response."""
+    if not isinstance(response_json, dict):
+        return 0
+
+    count = 0
+
+    # Check for direct b64_json
+    if response_json.get("b64_json"):
+        count += 1
+
+    # Check in data array
+    data = response_json.get("data")
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict) and item.get("b64_json"):
+                count += 1
+
+    return count
+
+
+def _build_image_api_url(image_id: str, index: int = 0) -> str:
+    """Build API URL to access image data from database.
+
+    Args:
+        image_id: Image record ID
+        index: Index for multiple images in one response
+
+    Returns:
+        API endpoint URL to fetch image data
+    """
+    return f"/api/v1/images/{image_id}/data/{index}"
+
+
+def _extract_first_image_url(response_json: Any, image_id: str) -> str | None:
+    """Build API URL for accessing stored image data.
+
+    Args:
+        response_json: The API response JSON (to check if images exist)
+        image_id: Image record ID for building API URL
+
+    Returns:
+        API endpoint URL to fetch image data, or None if no images
+    """
     if not isinstance(response_json, dict):
         return None
 
-    direct = response_json.get("url")
-    if isinstance(direct, str) and _is_http_url(direct):
-        return direct
+    # Check if there are any images in the response
+    has_images = False
 
+    # Check for direct b64_json
+    if response_json.get("b64_json"):
+        has_images = True
+
+    # Check in data array
     data = response_json.get("data")
-    if isinstance(data, list) and data and isinstance(data[0], dict):
-        url = data[0].get("url")
-        if isinstance(url, str) and _is_http_url(url):
-            return url
+    if isinstance(data, list) and data:
+        for item in data:
+            if isinstance(item, dict) and item.get("b64_json"):
+                has_images = True
+                break
+
+    if has_images:
+        return _build_image_api_url(image_id, 0)
+
     return None
 
 
@@ -132,6 +187,14 @@ async def images_edits_and_store(
     }
     response_dict: dict[str, Any] = provider_response if isinstance(provider_response, dict) else {"raw": provider_response}
 
+    # Generate image ID first so we can build API URLs
+    image_id = str(uuid4())
+
+    # Build image URL from response
+    image_url = _extract_first_image_url(response_dict, image_id)
+    logger.info("Generated (edits) image_id=%s, image_url=%s, response_keys=%s",
+                image_id, image_url, list(response_dict.keys()) if isinstance(response_dict, dict) else None)
+
     try:
         request_blob = encrypt_for_user(user_id=user.id, plaintext=_json_dumps(request_dict))
         response_blob = encrypt_for_user(user_id=user.id, plaintext=_json_dumps(response_dict))
@@ -143,12 +206,13 @@ async def images_edits_and_store(
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Storage quota exceeded")
 
     record = UserImage(
+        id=image_id,
         user_id=user.id,
         title=title,
         model=str(model),
         prompt=str(prompt),
         status="completed",
-        image_url=_extract_first_image_url(provider_response),
+        image_url=image_url,
         request_encrypted=request_blob,
         response_encrypted=response_blob,
         size_bytes=size_bytes,
@@ -241,6 +305,14 @@ async def images_generations_and_store(
     }
     response_dict: dict[str, Any] = provider_response if isinstance(provider_response, dict) else {"raw": provider_response}
 
+    # Generate image ID first so we can build API URLs
+    image_id = str(uuid4())
+
+    # Build image URL from response
+    image_url = _extract_first_image_url(response_dict, image_id)
+    logger.info("Generated image_id=%s, image_url=%s, response_keys=%s",
+                image_id, image_url, list(response_dict.keys()) if isinstance(response_dict, dict) else None)
+
     try:
         request_blob = encrypt_for_user(user_id=user.id, plaintext=_json_dumps(request_dict))
         response_blob = encrypt_for_user(user_id=user.id, plaintext=_json_dumps(response_dict))
@@ -252,12 +324,13 @@ async def images_generations_and_store(
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Storage quota exceeded")
 
     record = UserImage(
+        id=image_id,
         user_id=user.id,
         title=title,
         model=str(model),
         prompt=str(prompt),
         status="completed",
-        image_url=_extract_first_image_url(provider_response),
+        image_url=image_url,
         request_encrypted=request_blob,
         response_encrypted=response_blob,
         size_bytes=size_bytes,
@@ -334,6 +407,62 @@ async def get_image(
         request=_json_loads(request_payload),
         response=_json_loads(response_payload),
     )
+
+
+@router.get("/images/{image_id}/data/{index}")
+async def get_image_data(
+    image_id: str,
+    index: int = 0,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get raw image data from encrypted database storage.
+
+    Decodes base64 image data from the encrypted response and returns as binary.
+    """
+    record = await db.get(UserImage, image_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+    _ensure_owner(record, user)
+
+    # Decode from encrypted response
+    try:
+        response_payload = decrypt_for_user(user_id=record.user_id, blob=record.response_encrypted)
+        response_data = _json_loads(response_payload)
+    except EncryptionError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+    # Extract base64 data
+    b64_data: str | None = None
+
+    if isinstance(response_data, dict):
+        data_array = response_data.get("data")
+        if isinstance(data_array, list) and index < len(data_array):
+            item = data_array[index]
+            if isinstance(item, dict):
+                b64_data = item.get("b64_json")
+
+        if not b64_data and index == 0:
+            b64_data = response_data.get("b64_json")
+
+    if not b64_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image data not found")
+
+    try:
+        image_bytes = base64.b64decode(b64_data)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to decode image")
+
+    # Detect content type
+    content_type = "image/png"
+    if image_bytes[:3] == b'\xff\xd8\xff':
+        content_type = "image/jpeg"
+    elif image_bytes[:4] == b'RIFF' and image_bytes[8:12] == b'WEBP':
+        content_type = "image/webp"
+    elif image_bytes[:6] in (b'GIF87a', b'GIF89a'):
+        content_type = "image/gif"
+
+    return Response(content=image_bytes, media_type=content_type)
 
 
 @router.patch("/images/{image_id}", response_model=UserImageSummary)

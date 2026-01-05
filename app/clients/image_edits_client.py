@@ -59,8 +59,8 @@ class ImageEditsClient:
             payload["n"] = n
         if size:
             payload["size"] = size
-        if response_format:
-            payload["response_format"] = response_format
+        # Always use b64_json to ensure we can save images to storage
+        payload["response_format"] = "b64_json"
 
         settings = get_settings()
         retrying = AsyncRetrying(
@@ -92,8 +92,8 @@ class ImageEditsClient:
         url = self._build_url(endpoint)
 
         data: dict[str, str] = {"model": model, "prompt": prompt}
-        if response_format:
-            data["response_format"] = response_format
+        # Always use b64_json to ensure we can save images to storage
+        data["response_format"] = "b64_json"
         if aspect_ratio:
             data["aspect_ratio"] = aspect_ratio
         if image_size:
