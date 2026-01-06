@@ -50,13 +50,16 @@ class ImageEditsClient:
         size: str | None = None,
         response_format: str | None = None,
     ) -> Any:
-        """Text-to-image generation following OpenAI DALL-E format."""
+        """Text-to-image generation following OpenAI DALL-E format.
+
+        Note: Some upstream providers reject the `n` parameter. Callers SHOULD
+        perform batching/concurrency themselves and this client will not send
+        `n` upstream.
+        """
         endpoint = "/v1/images/generations"
         url = self._build_url(endpoint)
 
         payload: dict[str, Any] = {"model": model, "prompt": prompt}
-        if n and n > 1:
-            payload["n"] = n
         if size:
             payload["size"] = size
         if response_format:

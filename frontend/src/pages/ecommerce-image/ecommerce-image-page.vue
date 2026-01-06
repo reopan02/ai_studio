@@ -90,6 +90,11 @@
               <option value="4K">4K</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="form-label">并发数量</label>
+            <input class="form-input" type="number" min="1" max="10" v-model.number="modelConfig.n">
+            <div class="form-hint">一次生成多张图片（1-10）</div>
+          </div>
         </section>
 
         <!-- Product Selector -->
@@ -660,7 +665,7 @@
             </div>
 
             <div class="result-area">
-              <div class="result-placeholder" v-if="!generating && !generatedImage">
+              <div class="result-placeholder" v-if="!generating && generatedImages.length === 0">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <rect x="3" y="3" width="18" height="18" rx="2"/>
                   <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -675,8 +680,21 @@
                 <p>正在生成图片...</p>
               </div>
 
-              <div class="result-container" v-if="generatedImage && !generating">
-                <img :src="generatedImage" alt="Generated image" class="result-image">
+              <div class="result-container" v-if="generatedImages.length && !generating">
+                <img :src="generatedImage" alt="Generated image" class="result-image" @click="openLightbox(generatedImage)">
+                <div class="result-grid" v-if="generatedImages.length > 1">
+                  <button
+                    v-for="(img, idx) in generatedImages"
+                    :key="`${img}-${idx}`"
+                    class="result-thumb"
+                    :class="{ active: img === generatedImage }"
+                    type="button"
+                    @click="generatedImage = img"
+                  >
+                    <img :src="img" :alt="`Generated ${idx + 1}`" loading="lazy" decoding="async">
+                    <span class="result-thumb-index">{{ idx + 1 }}</span>
+                  </button>
+                </div>
                 <div class="result-actions">
                   <button class="btn btn-secondary" @click="downloadImage">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -738,12 +756,41 @@
               <span>正在生成...</span>
             </div>
             <div v-else-if="generatedImage">
-              <img :src="generatedImage" alt="Generated preview" class="preview-image">
+              <img :src="generatedImage" alt="Generated preview" class="preview-image" @click="openLightbox(generatedImage)">
             </div>
             <p v-else class="preview-placeholder">生成完成后显示结果。</p>
           </div>
         </div>
       </aside>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox-overlay" v-if="lightboxOpen" @click="closeLightbox">
+      <div class="lightbox-content" @click.stop>
+        <div class="lightbox-header">
+          <div class="lightbox-title">放大预览</div>
+          <button class="btn btn-ghost btn-icon" type="button" @click="closeLightbox" aria-label="Close preview">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="lightbox-body">
+          <img :src="lightboxImage" alt="Full size preview">
+        </div>
+        <div class="lightbox-footer">
+          <div class="lightbox-nav" v-if="generatedImages.length > 1">
+            <button class="btn btn-secondary btn-sm" type="button" @click="prevLightbox">上一张</button>
+            <span class="lightbox-index">{{ lightboxIndex + 1 }} / {{ generatedImages.length }}</span>
+            <button class="btn btn-secondary btn-sm" type="button" @click="nextLightbox">下一张</button>
+          </div>
+          <div class="lightbox-actions">
+            <button class="btn btn-secondary btn-sm" type="button" @click="downloadImage(lightboxImage)">下载</button>
+            <button class="btn btn-ghost btn-sm" type="button" @click="closeLightbox">关闭</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Toast Container -->
@@ -772,7 +819,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import CollapsibleGroup from '../../components/CollapsibleGroup.vue';
 
 // Types
@@ -850,7 +897,8 @@ const apiConfig = reactive({
 const modelConfig = reactive({
   model: 'gemini-3-pro-image-preview',
   aspectRatio: '',
-  imageSize: '1K'
+  imageSize: '1K',
+  n: 1
 });
 
 const steps = [
@@ -924,8 +972,19 @@ const promptTemplate = ref(DEFAULT_PROMPT_TEMPLATE);
 // Generation
 const generating = ref(false);
 const generatedImage = ref('');
+const generatedImages = ref<string[]>([]);
 const errorMessage = ref('');
 const toasts = ref<Toast[]>([]);
+
+const lightboxOpen = ref(false);
+const lightboxIndex = ref(0);
+
+const lightboxImage = computed(() => {
+  const imgs = generatedImages.value;
+  if (!imgs.length) return '';
+  const idx = Math.min(imgs.length - 1, Math.max(0, lightboxIndex.value));
+  return imgs[idx] || '';
+});
 
 // Computed
 const totalPages = computed(() => Math.ceil(totalProducts.value / pageSize));
@@ -1147,17 +1206,30 @@ function normalizeBaseUrl(value: string): string | null {
   return raw || null;
 }
 
-function extractImageUrl(payload: any): string | null {
-  if (!payload || typeof payload !== 'object') return null;
-  if (Array.isArray(payload.data) && payload.data[0]) {
-    const item = payload.data[0];
-    if (item?.url) return item.url;
-    if (item?.b64_json) return `data:image/png;base64,${item.b64_json}`;
+function extractImageUrls(payload: any): string[] {
+  if (!payload || typeof payload !== 'object') return [];
+
+  const urls: string[] = [];
+  if (Array.isArray(payload.data)) {
+    for (const item of payload.data) {
+      if (!item || typeof item !== 'object') continue;
+      if (typeof item.url === 'string' && item.url) urls.push(item.url);
+      else if (typeof item.b64_json === 'string' && item.b64_json) urls.push(`data:image/png;base64,${item.b64_json}`);
+      else if (typeof item.image_url === 'string' && item.image_url) urls.push(item.image_url);
+      else if (typeof item.imageUrl === 'string' && item.imageUrl) urls.push(item.imageUrl);
+    }
   }
-  if (payload.url) return payload.url;
-  if (payload.b64_json) return `data:image/png;base64,${payload.b64_json}`;
-  if (payload.image_url) return payload.image_url;
-  return null;
+
+  if (typeof payload.url === 'string' && payload.url) urls.push(payload.url);
+  if (typeof payload.b64_json === 'string' && payload.b64_json) urls.push(`data:image/png;base64,${payload.b64_json}`);
+  if (typeof payload.image_url === 'string' && payload.image_url) urls.push(payload.image_url);
+  if (typeof payload.imageUrl === 'string' && payload.imageUrl) urls.push(payload.imageUrl);
+
+  return Array.from(new Set(urls));
+}
+
+function extractImageUrl(payload: any): string | null {
+  return extractImageUrls(payload)[0] ?? null;
 }
 
 async function fetchProducts() {
@@ -1466,12 +1538,21 @@ async function generateImage() {
 
   generating.value = true;
   errorMessage.value = '';
+  closeLightbox();
 
   try {
+    const batchCount = Math.min(10, Math.max(1, Math.floor(Number(modelConfig.n) || 1)));
+    modelConfig.n = batchCount;
+    if (batchCount >= 6) {
+      const ok = confirm(`将并发生成 ${batchCount} 张图片，确认继续？`);
+      if (!ok) return;
+    }
+
     // Prepare form data
     const formData = new FormData();
     formData.append('prompt', composedPrompt.value);
     formData.append('model', modelConfig.model);
+    formData.append('n', String(batchCount));
     formData.append('response_format', 'url');
 
     if (modelConfig.aspectRatio) {
@@ -1518,15 +1599,16 @@ async function generateImage() {
 
     const data = await res.json();
     const payload = data && typeof data === 'object' && data.response ? data.response : data;
-    const imageUrl = extractImageUrl(payload) || extractImageUrl(data);
+    const urls = extractImageUrls(payload).length ? extractImageUrls(payload) : extractImageUrls(data);
 
-    if (imageUrl) {
-      generatedImage.value = imageUrl;
+    if (urls.length) {
+      generatedImages.value = urls;
+      generatedImage.value = urls[0] || '';
     } else {
       throw new Error('Invalid response format');
     }
 
-    showToast('图片生成成功', 'success');
+    showToast(urls.length > 1 ? `图片生成成功（${urls.length}张）` : '图片生成成功', 'success');
   } catch (e: any) {
     errorMessage.value = e.message || '生成失败，请重试';
   } finally {
@@ -1534,15 +1616,59 @@ async function generateImage() {
   }
 }
 
-function downloadImage() {
-  if (!generatedImage.value) return;
+function downloadImage(url?: string) {
+  const imageUrl = url || generatedImage.value;
+  if (!imageUrl) return;
 
   const link = document.createElement('a');
-  link.href = generatedImage.value;
+  link.href = imageUrl;
   link.download = `ecommerce-${Date.now()}.png`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+function openLightbox(url: string) {
+  const imgs = generatedImages.value;
+  if (!imgs.length) return;
+  const idx = url ? imgs.indexOf(url) : -1;
+  lightboxIndex.value = idx >= 0 ? idx : 0;
+  lightboxOpen.value = true;
+}
+
+function closeLightbox() {
+  lightboxOpen.value = false;
+}
+
+function prevLightbox() {
+  const total = generatedImages.value.length;
+  if (total <= 1) return;
+  lightboxIndex.value = (lightboxIndex.value - 1 + total) % total;
+}
+
+function nextLightbox() {
+  const total = generatedImages.value.length;
+  if (total <= 1) return;
+  lightboxIndex.value = (lightboxIndex.value + 1) % total;
+}
+
+function handleLightboxKeydown(e: KeyboardEvent) {
+  if (!lightboxOpen.value) return;
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeLightbox();
+    return;
+  }
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    prevLightbox();
+    return;
+  }
+  if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    nextLightbox();
+  }
 }
 
 let toastId = 0;
@@ -1578,5 +1704,24 @@ onMounted(() => {
   loadApiConfig();
   fetchProducts();
   initializeTemplateGroups(true);
+  document.addEventListener('keydown', handleLightboxKeydown);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleLightboxKeydown);
+});
+
+watch(lightboxOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : '';
+});
+
+watch(generatedImages, (imgs) => {
+  if (!imgs.length) {
+    closeLightbox();
+    return;
+  }
+  if (lightboxIndex.value >= imgs.length) {
+    lightboxIndex.value = 0;
+  }
 });
 </script>

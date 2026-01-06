@@ -83,6 +83,11 @@
                           <option value="4K">4K</option>
                       </select>
                   </div>
+                  <div class="form-group">
+                      <label class="form-label">并发数量</label>
+                      <input class="form-input" id="batchCount" type="number" min="1" max="10" value="1">
+                      <div class="form-hint">一次请求生成多张图片（1-10）</div>
+                  </div>
               </section>
   
               <!-- Image Upload -->

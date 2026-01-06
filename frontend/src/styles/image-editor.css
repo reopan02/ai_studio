@@ -129,6 +129,12 @@ body {
     margin-bottom: 6px;
 }
 
+.form-hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
 .form-input {
     width: 100%;
     padding: 10px 12px;

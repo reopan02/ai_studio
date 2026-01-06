@@ -71,6 +71,12 @@ function normalizeApiBaseUrl(value) {
     return u.origin;
 }
 
+function clampInt(value, min, max, fallback) {
+    const n = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+}
+
 async function readJsonOrText(response) {
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('application/json')) return await response.json();
@@ -93,6 +99,31 @@ function extractErrorMessage(data, fallback) {
     } catch {
         return fallback;
     }
+}
+
+function extractImageUrls(result) {
+    const urls = [];
+    if (!result || typeof result !== 'object') return urls;
+
+    const data = result.data;
+    if (Array.isArray(data)) {
+        for (const item of data) {
+            if (!item || typeof item !== 'object') continue;
+            if (typeof item.url === 'string' && item.url) urls.push(item.url);
+            else if (typeof item.b64_json === 'string' && item.b64_json) urls.push(`data:image/png;base64,${item.b64_json}`);
+            else if (typeof item.image_url === 'string' && item.image_url) urls.push(item.image_url);
+            else if (typeof item.imageUrl === 'string' && item.imageUrl) urls.push(item.imageUrl);
+        }
+    }
+
+    if (urls.length === 0) {
+        if (typeof result.url === 'string' && result.url) urls.push(result.url);
+        else if (typeof result.b64_json === 'string' && result.b64_json) urls.push(`data:image/png;base64,${result.b64_json}`);
+        else if (typeof result.image_url === 'string' && result.image_url) urls.push(result.image_url);
+        else if (typeof result.imageUrl === 'string' && result.imageUrl) urls.push(result.imageUrl);
+    }
+
+    return urls;
 }
 
 // ==========================================
@@ -148,6 +179,7 @@ const elements = {
     modelSearch: document.getElementById('modelSearch'),
     aspectRatio: document.getElementById('aspectRatio'),
     imageSize: document.getElementById('imageSize'),
+    batchCount: document.getElementById('batchCount'),
 
     // Upload
     uploadArea: document.getElementById('uploadArea'),
@@ -1211,11 +1243,18 @@ function deleteGenerationHistoryItem(index) {
 // ==========================================
 async function generateImage() {
     const prompt = elements.promptInput.value.trim();
+    const batchCount = clampInt(elements.batchCount?.value, 1, 10, 1);
+    if (elements.batchCount) elements.batchCount.value = String(batchCount);
 
     // Validation
     if (!prompt) {
         showToast('error', 'Prompt required', 'Please enter a prompt');
         return;
+    }
+
+    if (batchCount >= 6) {
+        const ok = confirm(`将并发生成 ${batchCount} 张图片，确认继续？`);
+        if (!ok) return;
     }
 
     // Update UI
@@ -1231,6 +1270,7 @@ async function generateImage() {
         const formData = new FormData();
         formData.append('model', elements.modelSelect.value);
         formData.append('prompt', prompt);
+        formData.append('n', String(batchCount));
         formData.append('response_format', 'url');
 
         if (elements.aspectRatio.value) {
@@ -1277,28 +1317,22 @@ async function generateImage() {
         const data = await readJsonOrText(response);
         const result = data && typeof data === 'object' && data.response ? data.response : data;
 
-        // Extract image URL
-        let imageUrl = null;
-        if (result.data && result.data[0]) {
-            imageUrl = result.data[0].url || result.data[0].b64_json;
-            if (result.data[0].b64_json && !result.data[0].url) {
-                imageUrl = `data:image/png;base64,${result.data[0].b64_json}`;
-            }
-        } else if (result.url) {
-            imageUrl = result.url;
-        } else if (result.b64_json) {
-            imageUrl = `data:image/png;base64,${result.b64_json}`;
-        }
-
-        if (!imageUrl) {
+        const imageUrls = extractImageUrls(result);
+        if (!imageUrls.length) {
             throw new Error('No image URL in response');
         }
 
         // Show result
-        showResult(imageUrl);
+        showResult(imageUrls[0]);
         savePromptToHistory(prompt);
-        saveToGenerationHistory(prompt, imageUrl);
-        showToast('success', 'Image generated', 'Your image has been created successfully');
+        for (let i = imageUrls.length - 1; i >= 0; i -= 1) {
+            saveToGenerationHistory(prompt, imageUrls[i]);
+        }
+        showToast(
+            'success',
+            imageUrls.length > 1 ? 'Images generated' : 'Image generated',
+            imageUrls.length > 1 ? `Generated ${imageUrls.length} images successfully` : 'Your image has been created successfully'
+        );
 
         // Refresh repository to show the newly saved image
         loadImagesFromRepository();
@@ -1541,6 +1575,12 @@ function initEventListeners() {
 
     // Model search
     elements.modelSearch.addEventListener('input', filterModels);
+
+    // Batch count
+    elements.batchCount?.addEventListener('change', () => {
+        const clamped = clampInt(elements.batchCount.value, 1, 10, 1);
+        elements.batchCount.value = String(clamped);
+    });
 
     // Generate
     elements.generateBtn.addEventListener('click', generateImage);
