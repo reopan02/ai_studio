@@ -1,0 +1,1 @@
+function e(o,n){const t=`; ${document.cookie||""}`.split(`; ${o}=`);return t.length===2&&t.pop().split(";").shift()||null}function s(){const o=e("csrf_token");return o?{"X-CSRF-Token":o}:{}}export{s as c};

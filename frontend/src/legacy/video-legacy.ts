@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { getUserId, supabase } from '@/shared/supabase';
+
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
     const els = {
@@ -562,20 +564,14 @@ document.addEventListener('DOMContentLoaded', () => {
         inlineHistoryState.loading = true;
 
         try {
-            const res = await fetch('/api/v1/videos?limit=50', {
-                credentials: 'include',
-                headers: csrfHeaders()
-            });
-            if (!res.ok) {
-                if (res.status === 401) {
-                    inlineHistoryState.items = [];
-                    renderInlineHistory();
-                    return;
-                }
-                throw new Error(`加载失败 (${res.status})`);
-            }
-            const data = await res.json();
-            inlineHistoryState.items = Array.isArray(data) ? data : (data.items || []);
+            const { data, error } = await supabase
+                .from('user_videos')
+                .select('id,title,model,prompt,video_url,created_at')
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (error) throw error;
+            inlineHistoryState.items = Array.isArray(data) ? data : [];
             renderInlineHistory();
         } catch (e) {
             log(`加载历史记录失败: ${e.message}`, 'error');
@@ -731,16 +727,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             try {
-                const res = await fetch(`/api/v1/videos/${item.id}`, {
-                    method: 'PATCH',
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...csrfHeaders()
-                    },
-                    body: JSON.stringify({ prompt: newPrompt })
-                });
-                if (!res.ok) throw new Error(`更新失败 (${res.status})`);
+                const { error } = await supabase
+                    .from('user_videos')
+                    .update({ prompt: newPrompt, updated_at: new Date().toISOString() })
+                    .eq('id', item.id);
+                if (error) throw error;
                 overlay.classList.add('hidden');
                 toast('提示词已更新', 'success');
                 loadInlineHistory();
@@ -766,12 +757,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function deleteHistoryItem(id) {
         if (!confirm('确定要删除这条记录吗？')) return;
         try {
-            const res = await fetch(`/api/v1/videos/${id}`, {
-                method: 'DELETE',
-                credentials: 'include',
-                headers: csrfHeaders()
-            });
-            if (!res.ok) throw new Error(`删除失败 (${res.status})`);
+            const { error } = await supabase.from('user_videos').delete().eq('id', id);
+            if (error) throw error;
             toast('已删除', 'success');
             loadInlineHistory();
         } catch (e) {
@@ -2520,54 +2507,57 @@ document.addEventListener('DOMContentLoaded', () => {
         addTaskLog(t, '开始保存到存储库', 'info');
 
         const doSave = async () => {
-            let res;
             try {
-                res = await fetch('/api/v1/videos', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...csrfHeaders()
+                const userId = await getUserId();
+                if (!userId) {
+                    window.location.href = '/login?next=/video';
+                    return;
+                }
+
+                const record = {
+                    user_id: userId,
+                    title: payload.title,
+                    model: payload.model,
+                    prompt: payload.prompt,
+                    status: payload.status,
+                    video_url: payload.video_url,
+                    metadata: payload.metadata,
+                    request: {
+                        modelKey: t.modelKey || null,
+                        baseUrl: t.baseUrl || null,
+                        payload: t.payload || null,
                     },
-                    body: JSON.stringify(payload)
-                });
+                    response: {
+                        task_id: t.taskId || null,
+                        status: t.status,
+                        progress: t.progress,
+                        video_url: t.videoUrl || null,
+                        platform: t.platform || null,
+                        action: t.action || null,
+                        cost: t.cost ?? null,
+                    },
+                };
+
+                const { data, error } = await supabase
+                    .from('user_videos')
+                    .insert(record)
+                    .select('id')
+                    .single();
+                if (error) throw error;
+
+                const savedVideoId = data?.id || null;
+                t.repoSave = { status: 'saved', errorMessage: '', savedVideoId, payload };
+                updateTaskRow(t);
+                addTaskLog(t, '已保存到存储库', 'success');
+                toast(`已保存到存储库：${t.name || t.taskId || ''}`.trim(), 'success', { durationMs: 2200 });
             } catch (e) {
-                const msg = String(e?.message || e || '网络错误');
+                const msg = String(e?.message || e || '保存失败');
                 t.repoSave = { status: 'failed', errorMessage: msg, savedVideoId: null, payload };
                 updateTaskRow(t);
                 addTaskLog(t, `保存失败: ${msg}`, 'error');
                 toast(`保存失败：${msg}`, 'error');
                 return;
             }
-
-            if (res.status === 401) {
-                const msg = '登录已过期，请重新登录后再保存';
-                t.repoSave = { status: 'failed', errorMessage: msg, savedVideoId: null, payload };
-                updateTaskRow(t);
-                addTaskLog(t, `保存失败: ${msg}`, 'warning');
-                toast(msg, 'warning');
-                window.location.href = '/login?next=/video';
-                return;
-            }
-
-            const data = await readJsonOrText(res);
-            if (!res.ok) {
-                let msg = extractErrorMessage(data, `保存失败（HTTP ${res.status}）`);
-                if (res.status === 403 && msg.toLowerCase().includes('csrf')) {
-                    msg = `${msg}（请刷新页面后重试）`;
-                }
-                t.repoSave = { status: 'failed', errorMessage: msg, savedVideoId: null, payload };
-                updateTaskRow(t);
-                addTaskLog(t, `保存失败: ${msg}`, 'error');
-                toast(`保存失败：${msg}`, 'error', { durationMs: 5200 });
-                return;
-            }
-
-            const savedVideoId = data?.id || null;
-            t.repoSave = { status: 'saved', errorMessage: '', savedVideoId, payload };
-            updateTaskRow(t);
-            addTaskLog(t, '已保存到存储库', 'success');
-            toast(`已保存到存储库：${t.name || t.taskId || ''}`.trim(), 'success', { durationMs: 2200 });
         };
 
         tasksState.saveQueue.enqueue(doSave).catch((e) => {

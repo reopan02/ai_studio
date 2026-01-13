@@ -1,6 +1,12 @@
 import { createApp } from 'vue';
 import AdminPage from './admin-page.vue';
 import '@/styles/app-static.css';
-import '@/legacy/admin-legacy';
+import { requireSession } from '@/shared/supabase';
 
-createApp(AdminPage).mount('#app');
+async function bootstrap() {
+  await requireSession();
+  await import('@/legacy/admin-legacy');
+  createApp(AdminPage).mount('#app');
+}
+
+void bootstrap();

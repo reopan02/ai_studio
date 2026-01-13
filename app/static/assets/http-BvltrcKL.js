@@ -1,0 +1,1 @@
+async function n(e){const t=await e.text();try{const r=JSON.parse(t);return String((r==null?void 0:r.detail)||(r==null?void 0:r.error)||(r==null?void 0:r.message)||t)}catch{return t||`HTTP ${e.status}`}}export{n as r};

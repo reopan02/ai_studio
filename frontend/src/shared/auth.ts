@@ -1,13 +1,12 @@
+import { supabase } from '@/shared/supabase';
+
 export type CurrentUser = {
   id: string;
-  username: string;
-  email: string;
-  is_admin: boolean;
+  email: string | null;
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const res = await fetch('/api/v1/auth/me', { credentials: 'include' });
-  if (!res.ok) return null;
-  return (await res.json()) as CurrentUser;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return { id: data.user.id, email: data.user.email ?? null };
 }
-

@@ -229,6 +229,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
+ import { supabase, apiFetch, getUserId, retrySupabase, formatSupabaseError } from '@/shared/supabase';
 
 // Types
 interface HistoryItem {
@@ -292,11 +293,6 @@ const generateHint = computed(() => {
 });
 
 // Methods
-function getCsrfToken(): string {
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
-  return match ? match[1] : '';
-}
-
 function normalizeApiKey(value: string): string {
   return String(value || '').trim().replace(/^bearer\s+/i, '').trim();
 }
@@ -326,14 +322,17 @@ function extractImageUrls(payload: any): string[] {
 async function fetchHistory() {
   loadingHistory.value = true;
   try {
-    const res = await fetch('/api/v1/images?limit=20', {
-      credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Failed to fetch history');
-    const data = await res.json();
-    history.value = data || [];
+    const { data, error } = await retrySupabase(() => supabase
+      .from('user_images')
+      .select('id,prompt,image_url,created_at')
+      .order('created_at', { ascending: false })
+      .limit(20)
+    );
+    if (error) throw error;
+    history.value = (data || []) as HistoryItem[];
   } catch (e) {
     console.error('Failed to load history:', e);
+    showToast(formatSupabaseError(e), 'error');
   } finally {
     loadingHistory.value = false;
   }
@@ -385,17 +384,14 @@ async function generateImage() {
       formData.append('aspect_ratio', imageSettings.aspectRatio);
     }
 
-    const headers: Record<string, string> = {
-      'X-CSRF-Token': getCsrfToken()
-    };
+    const headers: Record<string, string> = {};
     const apiKey = normalizeApiKey(apiConfig.apiKey);
     if (apiKey) headers['X-API-Key'] = apiKey;
     const baseUrl = normalizeBaseUrl(apiConfig.baseUrl);
     if (baseUrl) headers['X-Base-Url'] = baseUrl;
 
-    const res = await fetch('/api/v1/images/generations', {
+    const res = await apiFetch('/api/v1/images/generations', {
       method: 'POST',
-      credentials: 'include',
       headers,
       body: formData
     });
@@ -422,6 +418,35 @@ async function generateImage() {
     }
 
     showToast('图像生成成功', 'success');
+
+    // Save each generated image to Supabase repository.
+    const userId = await getUserId();
+    if (userId) {
+      const rows = generatedImages.value.map((url, idx) => ({
+        user_id: userId,
+        title: null,
+        model: modelConfig.model,
+        prompt: prompt.value.trim(),
+        status: 'completed',
+        image_url: url,
+        metadata: {
+          source: 'image-generate',
+          n: imageSettings.n,
+          size: imageSettings.size,
+          aspect_ratio: imageSettings.aspectRatio || null,
+          index: idx,
+        },
+        request: (data && typeof data === 'object' && data.request) ? (data.request as unknown) : null,
+        response: (data && typeof data === 'object' && data.response) ? (data.response as unknown) : data,
+      }));
+
+      const { error: insertError } = await retrySupabase(() => supabase.from('user_images').insert(rows));
+      if (insertError) {
+        console.warn('Failed to save images to repository:', insertError);
+        showToast(formatSupabaseError(insertError), 'error');
+      }
+    }
+
     // Refresh history
     fetchHistory();
   } catch (e: any) {

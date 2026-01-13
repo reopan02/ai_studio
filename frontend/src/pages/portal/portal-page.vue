@@ -27,6 +27,10 @@
           <stop offset="0%" stop-color="#EC4899"/>
           <stop offset="100%" stop-color="#8B5CF6"/>
         </linearGradient>
+        <linearGradient id="grad-runninghub-video" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#06B6D4"/>
+          <stop offset="100%" stop-color="#8B5CF6"/>
+        </linearGradient>
         <linearGradient id="grad-admin" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#64748B"/>
           <stop offset="100%" stop-color="#3B82F6"/>
@@ -37,6 +41,10 @@
     <header class="portal-header">
       <h1>AI 创作工作室</h1>
       <p>请选择功能模块</p>
+      <div class="portal-auth-row">
+        <span v-if="userEmail" class="portal-user-email">{{ userEmail }}</span>
+        <button class="btn btn-secondary" type="button" @click="logout">退出登录</button>
+      </div>
     </header>
 
     <section v-if="error" class="card error-banner" style="margin-bottom: 20px">
@@ -144,6 +152,17 @@
           <div class="portal-desc">Sora、Veo、Seedance 等模型</div>
         </a>
 
+        <a href="/runninghub-video" class="card portal-card portal-card-runninghub-video">
+          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-runninghub-video)" stroke="none">
+            <rect x="2" y="2" width="20" height="20" rx="3"/>
+            <path d="M7 16h10l-2 3H9l-2-3z" fill="white" opacity="0.9"/>
+            <path d="M8 13l2-5h4l2 5H8z" fill="white"/>
+            <circle cx="12" cy="6.5" r="1.5" fill="white" opacity="0.85"/>
+          </svg>
+          <div class="portal-title">全能视频 S</div>
+          <div class="portal-desc">RunningHub 图生视频（支持真人）</div>
+        </a>
+
         <a href="/image-generate" class="card portal-card portal-card-image-gen">
           <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-image-gen)" stroke="none">
             <rect x="2" y="2" width="20" height="20" rx="3"/>
@@ -209,33 +228,13 @@
       </div>
     </section>
 
-    <!-- 系统设置 Section (Admin Only) -->
-    <section v-if="isAdmin" class="portal-section">
-      <div class="section-header section-header-gray">
-        <span class="section-label">系统设置</span>
-        <span class="section-tag">仅管理员</span>
-      </div>
-      <div class="portal-grid">
-        <a href="/admin" class="card portal-card portal-card-admin">
-          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-admin)" stroke="none">
-            <circle cx="12" cy="12" r="10"/>
-            <circle cx="12" cy="12" r="4" fill="white"/>
-            <rect x="11" y="2" width="2" height="4" rx="1" fill="white"/>
-            <rect x="11" y="18" width="2" height="4" rx="1" fill="white"/>
-            <rect x="18" y="11" width="4" height="2" rx="1" fill="white"/>
-            <rect x="2" y="11" width="4" height="2" rx="1" fill="white"/>
-          </svg>
-          <div class="portal-title">管理后台</div>
-          <div class="portal-desc">用户管理与系统统计</div>
-        </a>
-      </div>
-    </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
 import { getCurrentUser } from '@/shared/auth';
+import { supabase } from '@/shared/supabase';
 
 // Global storage keys used by all pages
 const STORAGE_KEYS = {
@@ -244,7 +243,7 @@ const STORAGE_KEYS = {
 };
 
 const error = ref<string>('');
-const isAdmin = ref(false);
+const userEmail = ref<string | null>(null);
 const showConfig = ref(false);
 const apiKey = ref('');
 const baseUrl = ref('');
@@ -339,6 +338,11 @@ function resetConfig() {
   setTimeout(() => { saveMessage.value = ''; }, 3000);
 }
 
+async function logout() {
+  await supabase.auth.signOut();
+  window.location.href = '/login';
+}
+
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search);
   error.value = params.get('error') || '';
@@ -347,9 +351,9 @@ onMounted(async () => {
 
   try {
     const me = await getCurrentUser();
-    isAdmin.value = Boolean(me?.is_admin);
+    userEmail.value = me?.email ?? null;
   } catch {
-    isAdmin.value = false;
+    userEmail.value = null;
   }
 });
 </script>
@@ -382,6 +386,19 @@ onMounted(async () => {
 .portal-header p {
   color: var(--text-secondary);
   font-size: 16px;
+}
+
+.portal-auth-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  align-items: center;
+}
+
+.portal-user-email {
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 /* API Config Section */
@@ -670,6 +687,10 @@ onMounted(async () => {
 
 .portal-card-image-edit::before {
   background: linear-gradient(135deg, rgba(236, 72, 153, 0.08), rgba(139, 92, 246, 0.08));
+}
+
+.portal-card-runninghub-video::before {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(139, 92, 246, 0.08));
 }
 
 .portal-card-admin::before {

@@ -696,7 +696,7 @@
                   </button>
                 </div>
                 <div class="result-actions">
-                  <button class="btn btn-secondary" @click="downloadImage">
+                  <button class="btn btn-secondary" @click="() => downloadImage()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                       <polyline points="7 10 12 15 17 10"/>
@@ -821,6 +821,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import CollapsibleGroup from '../../components/CollapsibleGroup.vue';
+import { apiFetch, getUserId, supabase } from '@/shared/supabase';
 
 // Types
 interface Product {
@@ -1192,11 +1193,6 @@ function handleStepClick(stepId: number) {
 }
 
 // Methods
-function getCsrfToken(): string {
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
-  return match ? match[1] : '';
-}
-
 function normalizeApiKey(value: string): string {
   return String(value || '').trim().replace(/^bearer\s+/i, '').trim();
 }
@@ -1235,25 +1231,55 @@ function extractImageUrl(payload: any): string | null {
 async function fetchProducts() {
   loadingProducts.value = true;
   try {
-    const params = new URLSearchParams({
-      offset: String((currentPage.value - 1) * pageSize),
-      limit: String(pageSize)
-    });
+    const start = (currentPage.value - 1) * pageSize;
+    const end = start + pageSize - 1;
+
+    let query = supabase
+      .from('products')
+      .select('id,name,dimensions,features,characteristics,original_image_url,created_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(start, end);
+
     if (productSearch.value) {
-      params.set('name', productSearch.value);
+      query = query.ilike('name', `%${productSearch.value}%`);
     }
 
-    const res = await fetch(`/api/v1/products?${params}`, {
-      credentials: 'include'
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const rows = (data || []) as any[];
+    const ids = rows.map((p) => p.id);
+    const imagesByProductId = new Map<string, ProductImage[]>();
+
+    if (ids.length) {
+      const { data: imgs, error: imgsError } = await supabase
+        .from('product_images')
+        .select('id,product_id,image_url,is_primary')
+        .in('product_id', ids);
+      if (imgsError) throw imgsError;
+
+      for (const img of imgs || []) {
+        const productId = (img as any).product_id as string;
+        const entry: ProductImage = {
+          id: (img as any).id as string,
+          image_url: (img as any).image_url as string,
+          is_primary: Boolean((img as any).is_primary),
+        };
+        const list = imagesByProductId.get(productId) || [];
+        list.push(entry);
+        imagesByProductId.set(productId, list);
+      }
+    }
+
+    products.value = rows.map((p) => {
+      const images = imagesByProductId.get(p.id) || [];
+      return {
+        ...(p as Product),
+        images,
+        image_count: images.length || 1,
+      };
     });
-
-    if (!res.ok) {
-      throw new Error('Failed to fetch products');
-    }
-
-    const data = await res.json();
-    products.value = data.products || [];
-    totalProducts.value = data.total || 0;
+    totalProducts.value = count || 0;
   } catch (e) {
     showToast('加载产品列表失败', 'error');
   } finally {
@@ -1293,28 +1319,29 @@ async function selectProduct(product: Product) {
 
   // Load full product details
   try {
-    const res = await fetch(`/api/v1/products/${product.id}`, {
-      credentials: 'include'
-    });
+    const { data: detail, error } = await supabase.from('products').select('*').eq('id', product.id).single();
+    if (error) throw error;
 
-    if (!res.ok) {
-      throw new Error('Failed to load product details');
-    }
-
-    const detail = await res.json();
+    const { data: imgs, error: imgsError } = await supabase
+      .from('product_images')
+      .select('id,image_url,is_primary')
+      .eq('product_id', product.id)
+      .order('is_primary', { ascending: false });
+    if (imgsError) throw imgsError;
 
     // Update editable fields
-    editableProduct.name = detail.name || '';
-    editableProduct.dimensions = detail.dimensions || '';
-    editableProduct.featuresText = (detail.features || []).join('\n');
-    editableProduct.characteristicsText = (detail.characteristics || []).join('\n');
+    editableProduct.name = (detail as any).name || '';
+    editableProduct.dimensions = (detail as any).dimensions || '';
+    editableProduct.featuresText = ((detail as any).features || []).join('\n');
+    editableProduct.characteristicsText = ((detail as any).characteristics || []).join('\n');
 
     // Load images
-    productImages.value = detail.images || [];
-    if (productImages.value.length === 0 && detail.original_image_url) {
+    productImages.value = ((imgs as any[]) || []) as ProductImage[];
+    const originalUrl = (detail as any).original_image_url as string | null | undefined;
+    if (productImages.value.length === 0 && originalUrl) {
       productImages.value = [{
-        id: detail.id,
-        image_url: detail.original_image_url,
+        id: (detail as any).id,
+        image_url: originalUrl,
         is_primary: true
       }];
     }
@@ -1577,17 +1604,14 @@ async function generateImage() {
       }
     }
 
-    const headers: Record<string, string> = {
-      'X-CSRF-Token': getCsrfToken()
-    };
+    const headers: Record<string, string> = {};
     const apiKey = normalizeApiKey(apiConfig.apiKey);
     if (apiKey) headers['X-API-Key'] = apiKey;
     const baseUrl = normalizeBaseUrl(apiConfig.baseUrl);
     if (baseUrl) headers['X-Base-Url'] = baseUrl;
 
-    const res = await fetch('/api/v1/images/edits', {
+    const res = await apiFetch('/api/v1/images/edits', {
       method: 'POST',
-      credentials: 'include',
       headers,
       body: formData
     });
@@ -1609,6 +1633,37 @@ async function generateImage() {
     }
 
     showToast(urls.length > 1 ? `图片生成成功（${urls.length}张）` : '图片生成成功', 'success');
+
+    const userId = await getUserId();
+    if (userId) {
+      const rows = urls.map((url, idx) => ({
+        user_id: userId,
+        title: selectedProduct.value?.name ? `电商图 - ${selectedProduct.value.name}` : null,
+        model: modelConfig.model,
+        prompt: composedPrompt.value,
+        status: 'completed',
+        image_url: url,
+        metadata: {
+          source: 'ecommerce-image',
+          product_id: selectedProduct.value?.id || null,
+          selected_templates: {
+            scene: [...selectedTemplates.scene],
+            angle: [...selectedTemplates.angle],
+            style: [...selectedTemplates.style],
+            target: [...selectedTemplates.target],
+          },
+          selected_images: selectedImages.value,
+          aspect_ratio: modelConfig.aspectRatio || null,
+          image_size: modelConfig.imageSize || null,
+          index: idx,
+        },
+        request: (data && typeof data === 'object' && (data as any).request) ? (data as any).request : null,
+        response: (data && typeof data === 'object' && (data as any).response) ? (data as any).response : data,
+      }));
+
+      const { error: insertError } = await supabase.from('user_images').insert(rows);
+      if (insertError) console.warn('Failed to save images to repository:', insertError);
+    }
   } catch (e: any) {
     errorMessage.value = e.message || '生成失败，请重试';
   } finally {

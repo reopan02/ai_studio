@@ -4,13 +4,13 @@
       <section class="card auth-card">
         <h2>登录</h2>
         <div class="form-group">
-          <label for="usernameOrEmail">用户名或邮箱</label>
+          <label for="email">邮箱</label>
           <input
-            id="usernameOrEmail"
-            v-model="usernameOrEmail"
-            type="text"
-            autocomplete="username"
-            placeholder="输入用户名或邮箱"
+            id="email"
+            v-model="email"
+            type="email"
+            autocomplete="email"
+            placeholder="name@example.com"
           />
         </div>
         <div class="form-group">
@@ -36,11 +36,14 @@
             <span class="btn-text">登录</span>
             <span class="loader"></span>
           </button>
+          <button class="btn btn-secondary" type="button" :disabled="isLoading" @click="signup">
+            注册
+          </button>
           <a class="meta-text" href="/" style="text-decoration: none">返回首页</a>
         </div>
         <div id="error" class="auth-error" role="alert" aria-live="polite">{{ error }}</div>
         <div class="auth-meta">
-          没有账号？请使用 <code>POST /api/v1/auth/register</code> 注册后再登录。
+          使用 Supabase Auth（Email/Password）登录。
         </div>
       </section>
     </main>
@@ -50,33 +53,54 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { safeNextPath } from '@/shared/routing';
-import { readErrorText } from '@/shared/http';
+import { supabase } from '@/shared/supabase';
 
-const usernameOrEmail = ref('');
+const email = ref('');
 const password = ref('');
 const error = ref('');
 const isLoading = ref(false);
 
 async function login() {
   error.value = '';
-  const username = usernameOrEmail.value.trim();
-  if (!username || !password.value) {
-    error.value = '请输入用户名/邮箱和密码';
+  const address = email.value.trim();
+  if (!address || !password.value) {
+    error.value = '请输入邮箱和密码';
     return;
   }
 
   isLoading.value = true;
   try {
-    const res = await fetch('/api/v1/auth/login?set_cookie=1', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ username_or_email: username, password: password.value })
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: address,
+      password: password.value,
     });
-    if (!res.ok) throw new Error(await readErrorText(res));
+    if (authError) throw authError;
     window.location.href = safeNextPath();
   } catch (e: any) {
     error.value = e?.message || '登录失败';
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+async function signup() {
+  error.value = '';
+  const address = email.value.trim();
+  if (!address || !password.value) {
+    error.value = '请输入邮箱和密码';
+    return;
+  }
+
+  isLoading.value = true;
+  try {
+    const { error: authError } = await supabase.auth.signUp({
+      email: address,
+      password: password.value,
+    });
+    if (authError) throw authError;
+    window.location.href = safeNextPath();
+  } catch (e: any) {
+    error.value = e?.message || '注册失败';
   } finally {
     isLoading.value = false;
   }

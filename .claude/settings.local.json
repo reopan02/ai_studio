@@ -5,7 +5,8 @@
       "Bash(mkdir:*)",
       "Bash(openspec validate:*)",
       "Bash(openspec show:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "mcp__chrome-devtools__list_pages"
     ]
   }
 }

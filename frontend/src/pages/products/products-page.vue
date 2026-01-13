@@ -21,7 +21,6 @@
         <a href="/video" class="btn btn-secondary" style="text-decoration: none">视频生成</a>
         <a href="/image" class="btn btn-secondary" style="text-decoration: none">图像处理</a>
         <a href="/storage" class="btn btn-secondary" style="text-decoration: none">存储库</a>
-        <a v-if="isAdmin" href="/admin" class="btn btn-secondary" style="text-decoration: none">Admin</a>
       </div>
     </header>
 
@@ -301,8 +300,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { getCurrentUser } from '@/shared/auth';
-import { csrfHeaders } from '@/shared/csrf';
+import { apiFetch, getUserId, supabase } from '@/shared/supabase';
 
 type ProductSummary = {
   id: string;
@@ -311,7 +309,6 @@ type ProductSummary = {
   dimensions: string | null;
   original_image_url: string;
   recognition_confidence: number | null;
-  image_size_bytes: number;
   image_count: number;
   created_at: string;
   updated_at: string | null;
@@ -320,7 +317,6 @@ type ProductSummary = {
 type ProductImage = {
   id: string;
   image_url: string;
-  image_size_bytes: number;
   is_primary: boolean;
   created_at: string;
   updated_at: string | null;
@@ -354,8 +350,6 @@ type ProductListResponse = {
   offset: number;
   limit: number;
 };
-
-const isAdmin = ref(false);
 
 const products = ref<ProductSummary[]>([]);
 const loading = ref(false);
@@ -574,35 +568,48 @@ async function readApiError(res: Response): Promise<string> {
   }
 }
 
-async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
-  const method = (init.method || 'GET').toUpperCase();
-  const headers = new Headers(init.headers || {});
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-    for (const [k, v] of Object.entries(csrfHeaders())) headers.set(k, v);
-  }
-  return fetch(input, {
-    ...init,
-    headers,
-    credentials: 'include',
-  });
-}
-
 async function loadProducts() {
   loading.value = true;
   try {
-    const params = new URLSearchParams();
-    params.set('offset', String(offset.value));
-    params.set('limit', String(limit.value));
-    if (searchQuery.value.trim()) params.set('name', searchQuery.value.trim());
+    const start = offset.value;
+    const end = offset.value + limit.value - 1;
+    const nameQuery = searchQuery.value.trim();
 
-    const res = await apiFetch(`/api/v1/products?${params.toString()}`);
-    if (!res.ok) throw new Error(await readApiError(res));
+    let query = supabase
+      .from('products')
+      .select('id,user_id,name,dimensions,original_image_url,recognition_confidence,created_at,updated_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(start, end);
 
-    const data = (await res.json()) as ProductListResponse;
-    products.value = data.products;
-    total.value = data.total;
-    offset.value = data.offset;
-    limit.value = data.limit;
+    if (nameQuery) {
+      query = query.ilike('name', `%${nameQuery}%`);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const rows = (data || []) as Omit<ProductSummary, 'image_count'>[];
+    const ids = rows.map((p) => p.id);
+
+    const imageCountByProductId = new Map<string, number>();
+    if (ids.length) {
+      const { data: imgs, error: imgsError } = await supabase
+        .from('product_images')
+        .select('id,product_id')
+        .in('product_id', ids);
+      if (imgsError) throw imgsError;
+
+      for (const img of imgs || []) {
+        const productId = (img as any).product_id as string;
+        imageCountByProductId.set(productId, (imageCountByProductId.get(productId) || 0) + 1);
+      }
+    }
+
+    products.value = rows.map((p) => ({
+      ...(p as any),
+      image_count: imageCountByProductId.get(p.id) || 1,
+    }));
+    total.value = count || 0;
   } catch (e) {
     setError((e as Error).message || String(e));
   } finally {
@@ -611,9 +618,29 @@ async function loadProducts() {
 }
 
 async function loadProductDetail(productId: string): Promise<ProductDetail> {
-  const res = await apiFetch(`/api/v1/products/${productId}`);
-  if (!res.ok) throw new Error(await readApiError(res));
-  return (await res.json()) as ProductDetail;
+  const { data: product, error: productError } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', productId)
+    .single();
+  if (productError) throw productError;
+
+  const { data: imgs, error: imgsError } = await supabase
+    .from('product_images')
+    .select('id,image_url,is_primary,created_at,updated_at')
+    .eq('product_id', productId)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true });
+  if (imgsError) throw imgsError;
+
+  const images = (imgs || []) as ProductImage[];
+  const detail = {
+    ...(product as any),
+    images,
+    image_count: images.length || 1,
+  };
+
+  return detail as ProductDetail;
 }
 
 function resetForm() {
@@ -684,35 +711,87 @@ async function createProduct() {
   }
 
   saving.value = true;
+  let uploadedImageUrls: string[] = [];
   try {
-    const fd = new FormData();
-    for (const image of selectedImages.value) {
-      fd.append('images', image.file);
-    }
-    fd.append('primary_index', String(primaryIndex.value));
-    const name = form.name.trim();
-    if (name) fd.append('name', name);
-    if (form.dimensions.trim()) fd.append('dimensions', form.dimensions.trim());
+    const userId = await getUserId();
+    if (!userId) throw new Error('Not authenticated');
 
+    const productId =
+      globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
+        ? globalThis.crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const uploadFd = new FormData();
+    uploadFd.append('product_id', productId);
+    uploadFd.append('primary_index', String(primaryIndex.value));
+    for (const image of selectedImages.value) {
+      uploadFd.append('images', image.file);
+    }
+
+    const uploadRes = await apiFetch('/api/v1/uploads/products', { method: 'POST', body: uploadFd });
+    if (!uploadRes.ok) throw new Error(await readApiError(uploadRes));
+
+    const uploadPayload = (await uploadRes.json()) as {
+      product_id: string;
+      images: { image_url: string; is_primary: boolean; image_size_bytes: number }[];
+    };
+
+    uploadedImageUrls = (uploadPayload.images || []).map((x) => x.image_url);
+    const primaryImageUrl =
+      uploadPayload.images.find((x) => x.is_primary)?.image_url || uploadPayload.images[0]?.image_url || '';
+    if (!primaryImageUrl) throw new Error('Upload failed');
+
+    const name = form.name.trim() || '未命名产品';
+    const dimensions = form.dimensions.trim() || null;
     const features = toLines(form.featuresText);
     const characteristics = toLines(form.characteristicsText);
-    if (features.length) fd.append('features', JSON.stringify(features));
-    if (characteristics.length) fd.append('characteristics', JSON.stringify(characteristics));
 
-    // If we have preview recognition data, use prefill mode
-    // Otherwise, use manual mode to skip AI (user may have filled fields manually)
-    if (previewRecognitionData.value) {
-      fd.append('recognition_mode', 'prefill');
-      fd.append('recognition_confidence', String(previewRecognitionData.value.confidence));
-      fd.append('recognition_metadata_json', JSON.stringify(previewRecognitionData.value.metadata));
-    } else {
-      fd.append('recognition_mode', 'manual');
-    }
+    const recognitionConfidenceValue = previewRecognitionData.value?.confidence ?? null;
+    const recognitionMetadataValue = previewRecognitionData.value?.metadata ?? null;
 
-    const res = await apiFetch('/api/v1/products', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error(await readApiError(res));
+    const { error: productError } = await supabase.from('products').insert({
+      id: productId,
+      user_id: userId,
+      name,
+      dimensions,
+      features: features.length ? features : null,
+      characteristics: characteristics.length ? characteristics : null,
+      original_image_url: primaryImageUrl,
+      recognition_confidence: recognitionConfidenceValue,
+      recognition_metadata: recognitionMetadataValue,
+      updated_at: null,
+    });
+    if (productError) throw productError;
 
-    const created = (await res.json()) as ProductDetail;
+    const imageRows = uploadPayload.images.map((img) => ({
+      product_id: productId,
+      user_id: userId,
+      image_url: img.image_url,
+      is_primary: img.is_primary,
+    }));
+
+    const { data: insertedImages, error: imagesError } = await supabase
+      .from('product_images')
+      .insert(imageRows)
+      .select('id,image_url,is_primary,created_at,updated_at');
+    if (imagesError) throw imagesError;
+
+    const created: ProductDetail = {
+      id: productId,
+      user_id: userId,
+      name,
+      dimensions,
+      original_image_url: primaryImageUrl,
+      recognition_confidence: recognitionConfidenceValue,
+      image_count: insertedImages?.length || uploadPayload.images.length || 1,
+      created_at: new Date().toISOString(),
+      updated_at: null,
+      features: features.length ? features : null,
+      characteristics: characteristics.length ? characteristics : null,
+      recognition_metadata: recognitionMetadataValue,
+      images: (insertedImages || []) as ProductImage[],
+    };
+
     setSuccess(
       `创建成功（AI：${Math.round(((created.recognition_confidence ?? 0) as number) * 100)}%），可继续编辑后保存`
     );
@@ -732,6 +811,19 @@ async function createProduct() {
 
     await loadProducts();
   } catch (e) {
+    if (uploadedImageUrls.length) {
+      for (const url of uploadedImageUrls) {
+        try {
+          await apiFetch('/api/v1/uploads/products/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_url: url }),
+          });
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
     setError((e as Error).message || String(e));
   } finally {
     saving.value = false;
@@ -754,16 +846,13 @@ async function updateProduct() {
       dimensions: form.dimensions.trim() || null,
       features: toLines(form.featuresText),
       characteristics: toLines(form.characteristicsText),
+      updated_at: new Date().toISOString(),
     };
 
-    const res = await apiFetch(`/api/v1/products/${editingProductId.value}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error(await readApiError(res));
+    const { error } = await supabase.from('products').update(payload).eq('id', editingProductId.value);
+    if (error) throw error;
 
-    const updated = (await res.json()) as ProductDetail;
+    const updated = await loadProductDetail(editingProductId.value);
     recognitionConfidence.value = updated.recognition_confidence;
     existingImages.value = updated.images || existingImages.value;
     setSuccess('已保存修改');
@@ -808,8 +897,28 @@ async function deleteProduct(productId: string) {
 
   saving.value = true;
   try {
-    const res = await apiFetch(`/api/v1/products/${productId}`, { method: 'DELETE' });
-    if (!res.ok && res.status !== 204) throw new Error(await readApiError(res));
+    const { data: imgs, error: imgsError } = await supabase
+      .from('product_images')
+      .select('image_url')
+      .eq('product_id', productId);
+    if (imgsError) throw imgsError;
+
+    const imageUrls = (imgs || []).map((x) => (x as any).image_url as string).filter(Boolean);
+
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (error) throw error;
+
+    for (const url of imageUrls) {
+      try {
+        await apiFetch('/api/v1/uploads/products/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_url: url }),
+        });
+      } catch {
+        // ignore cleanup errors
+      }
+    }
 
     if (editingProductId.value === productId) resetForm();
     setSuccess('已删除产品');
@@ -845,12 +954,6 @@ function debouncedSearch() {
 }
 
 onMounted(async () => {
-  try {
-    const me = await getCurrentUser();
-    isAdmin.value = Boolean(me?.is_admin);
-  } catch {
-    isAdmin.value = false;
-  }
   await loadProducts();
 });
 </script>
@@ -1186,4 +1289,3 @@ onMounted(async () => {
   }
 }
 </style>
-

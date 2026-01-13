@@ -11,6 +11,14 @@ class Settings(BaseSettings):
     API_KEY: str
     LLM_MODEL: str = "openai/gpt-4o-mini"
 
+    RUNNINGHUB_BASE_URL: str = "https://www.runninghub.cn"
+    RUNNINGHUB_API_KEY: Optional[str] = None
+
+    UPLOAD_URL: Optional[str] = None
+    UPLOAD_APIKEY: Optional[str] = None
+
+    SUPABASE_JWT_SECRET: Optional[str] = None
+
     DATABASE_URL: Optional[str] = None
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10

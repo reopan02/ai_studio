@@ -1,95 +1,59 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.datetime_utils import as_utc, utc_now
-from app.core.security import decode_access_token
-from app.db.session import get_db
-from app.models.database import User, UserSession
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+from app.config import get_settings
+from app.core.supabase_auth import verify_supabase_jwt
 
 
 @dataclass(frozen=True)
 class AuthContext:
-    user: User
-    session: UserSession
+    user_id: str
+    claims: dict[str, Any]
+
+
+def authenticate_supabase_bearer(authorization: str | None, *, jwt_secret: str) -> AuthContext:
+    """
+    Authenticate using `Authorization: Bearer <supabase_access_token>`.
+
+    This function is intentionally pure-ish (no FastAPI objects) to keep it testable.
+    """
+    if not authorization:
+        raise ValueError("Not authenticated")
+
+    parts = str(authorization).strip().split(None, 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise ValueError("Invalid authorization scheme")
+
+    token = parts[1].strip()
+    claims = verify_supabase_jwt(token, jwt_secret=jwt_secret)
+    return AuthContext(user_id=str(claims["sub"]), claims=claims)
 
 
 async def get_auth_context(
     request: Request,
-    token: Optional[str] = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_db),
 ) -> AuthContext:
-    token = token or request.cookies.get("access_token")
-    if not token:
+    settings = get_settings()
+    if not settings.SUPABASE_JWT_SECRET:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SUPABASE_JWT_SECRET is not configured",
         )
 
     try:
-        payload = decode_access_token(token)
-    except Exception:
+        return authenticate_supabase_bearer(
+            request.headers.get("authorization"),
+            jwt_secret=settings.SUPABASE_JWT_SECRET,
+        )
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-        )
-
-    user_id = payload.get("sub")
-    session_id = payload.get("sid")
-    if not user_id or not session_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-        )
-
-    user: Optional[User] = await db.get(User, user_id)
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive user",
-        )
-
-    session: Optional[UserSession] = await db.get(UserSession, session_id)
-    now = utc_now()
-    if session:
-        try:
-            expires_at = as_utc(session.expires_at)
-        except Exception:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session expired",
-            )
-    else:
-        expires_at = None
-    if (
-        not session
-        or session.user_id != user.id
-        or session.revoked_at is not None
-        or (expires_at is not None and expires_at <= now)
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired",
-        )
-
-    return AuthContext(user=user, session=session)
+            detail=str(exc) or "Not authenticated",
+        ) from exc
 
 
-async def get_current_user(context: AuthContext = Depends(get_auth_context)) -> User:
-    return context.user
-
-
-async def require_admin(context: AuthContext = Depends(get_auth_context)) -> User:
-    if not context.user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required",
-        )
-    return context.user
+async def get_current_user(context: AuthContext = Depends(get_auth_context)) -> AuthContext:
+    return context

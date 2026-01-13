@@ -1,48 +1,17 @@
-import asyncio
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.api.v1 import admin, auth, categories, images, logs, products, storage, tasks, video, videos
-from app.api.deps import get_current_user
+from app.api.v1 import auth, image_proxy, images, product_recognition, runninghub, storage, tasks, uploads, video
 from app.config import get_settings
-from app.models.database import User
-from app.core.backup import backup_loop
 from app.core.static_files import CacheControlStaticFiles
-from app.db.init import init_db
-from app.db.session import init_engine
-from app.middleware.csrf import CSRFMiddleware
-from app.middleware.request_logging import RequestLoggingMiddleware
-from app.middleware.web_auth_redirect import WebAuthRedirectMiddleware
-from app.core.product_storage import get_products_upload_dir
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    engine = init_engine()
-    backup_stop: asyncio.Event | None = None
-    backup_task: asyncio.Task | None = None
-    if engine:
-        await init_db(engine)
-
-    # Ensure upload directories exist before mounting static routes.
-    get_products_upload_dir()
-
-    settings = get_settings()
-    if engine and settings.BACKUP_ENABLED:
-        backup_stop = asyncio.Event()
-        backup_task = asyncio.create_task(backup_loop(backup_stop))
     yield
-    if backup_stop:
-        backup_stop.set()
-    if backup_task:
-        backup_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await backup_task
-    if engine:
-        await engine.dispose()
 
 
 app = FastAPI(
@@ -60,20 +29,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(CSRFMiddleware)
-app.add_middleware(RequestLoggingMiddleware)
-app.add_middleware(WebAuthRedirectMiddleware)
-
 app.include_router(video.router, prefix="/api/v1", tags=["Video Generation"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["Task Management"])
+app.include_router(runninghub.router, prefix="/api/v1", tags=["RunningHub"])
+app.include_router(image_proxy.router, prefix="/api/v1", tags=["Images"])
+app.include_router(product_recognition.router, prefix="/api/v1", tags=["Products"])
+app.include_router(uploads.router, prefix="/api/v1", tags=["Uploads"])
+app.include_router(images.router, prefix="/api/v1", tags=["User Images"])
 app.include_router(auth.router, prefix="/api/v1", tags=["Auth"])
-app.include_router(categories.router, prefix="/api/v1", tags=["Data"])
-app.include_router(logs.router, prefix="/api/v1", tags=["Data"])
-app.include_router(videos.router, prefix="/api/v1", tags=["Videos"])
-app.include_router(images.router, prefix="/api/v1", tags=["Images"])
-app.include_router(products.router, prefix="/api/v1", tags=["Products"])
 app.include_router(storage.router, prefix="/api/v1", tags=["Storage"])
-app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 
 # Mount static files
 app.mount("/static", CacheControlStaticFiles(directory="app/static"), name="static")
@@ -100,6 +64,11 @@ async def video_page():
     return FileResponse("app/static/video.html")
 
 
+@app.get("/runninghub-video")
+async def runninghub_video_page():
+    return FileResponse("app/static/runninghub-video.html")
+
+
 @app.get("/dashboard")
 async def dashboard_redirect():
     from starlette.responses import RedirectResponse
@@ -107,31 +76,32 @@ async def dashboard_redirect():
 
 
 @app.get("/admin")
-async def admin_page(user: User = Depends(get_current_user)):
-    if not user.is_admin:
-        from starlette.responses import RedirectResponse
+async def admin_page():
+    from fastapi import HTTPException, status
 
-        return RedirectResponse(url="/?error=Admin%20access%20required", status_code=303)
-    return FileResponse("app/static/admin.html")
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Admin UI removed. Use Supabase Studio instead.",
+    )
 
 
 @app.get("/image")
-async def image_page(user: User = Depends(get_current_user)):
+async def image_page():
     return FileResponse("app/static/image.html")
 
 
 @app.get("/products")
-async def products_page(user: User = Depends(get_current_user)):
+async def products_page():
     return FileResponse("app/static/products.html")
 
 
 @app.get("/ecommerce-image")
-async def ecommerce_image_page(user: User = Depends(get_current_user)):
+async def ecommerce_image_page():
     return FileResponse("app/static/ecommerce-image.html")
 
 
 @app.get("/image-generate")
-async def image_generate_page(user: User = Depends(get_current_user)):
+async def image_generate_page():
     return FileResponse("app/static/image-generate.html")
 
 

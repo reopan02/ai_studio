@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { apiFetch, getUserId, supabase, retrySupabase, formatSupabaseError } from '@/shared/supabase';
+
 const STORAGE_KEYS = {
     apiKey: 'global_api_key',
     baseUrl: 'global_base_url'
@@ -737,32 +739,24 @@ function canvasZoomReset() {
 	        // ==========================================
 
 	        async function checkAuthentication() {
-	            try {
-	                const res = await fetch('/api/v1/auth/me', { credentials: 'include' });
-	                if (!res.ok) {
-	                    window.location.href = '/login?next=/image';
-	                    return false;
-	                }
-	                return true;
-	            } catch (err) {
-	                console.error('Authentication check failed:', err);
+	            const { data } = await supabase.auth.getSession();
+	            if (!data.session) {
 	                window.location.href = '/login?next=/image';
 	                return false;
 	            }
+	            return true;
 	        }
 
 	        async function loadImagesFromRepository() {
 	            try {
-	                const res = await fetch('/api/v1/images?limit=50', { credentials: 'include' });
-	                if (!res.ok) {
-	                    if (res.status === 401) {
-	                        window.location.href = '/login?next=/image';
-	                        return;
-	                    }
-	                    throw new Error('Failed to load images');
-	                }
-
-	                const images = await res.json();
+	                const { data, error } = await retrySupabase(() => supabase
+	                    .from('user_images')
+	                    .select('id,title,model,prompt,image_url,created_at')
+	                    .order('created_at', { ascending: false })
+	                    .limit(50)
+	                );
+	                if (error) throw error;
+	                const images = data || [];
         // state.drawingHistory = images.map(img => ({ ... })); // Removed
         /*
 	                state.drawingHistory = images.map(img => ({
@@ -779,7 +773,7 @@ function canvasZoomReset() {
 	                // renderDrawingHistory(); // Removed
 	            } catch (err) {
 	                console.error('Failed to load images from repository:', err);
-	                showToast('error', 'Load failed', err.message || 'Failed to load images from repository');
+	                showToast('error', 'Load failed', formatSupabaseError(err));
 	            }
 	        }
 
@@ -790,34 +784,25 @@ function canvasZoomReset() {
 	            }
 
 	            try {
-	                const payload = {
-	                    image_url: imageUrl,
+	                const userId = await getUserId();
+	                if (!userId) {
+	                    window.location.href = '/login?next=/image';
+	                    return null;
+	                }
+
+	                const record = {
+	                    user_id: userId,
+	                    title: null,
 	                    model: model || 'unknown',
 	                    prompt: prompt || '',
 	                    status: 'completed',
-	                    title: null
+	                    image_url: imageUrl,
+	                    metadata: { source: 'image-editor' },
 	                };
 
-	                const res = await fetch('/api/v1/images', {
-	                    method: 'POST',
-	                    headers: {
-	                        'Content-Type': 'application/json',
-	                        ...csrfHeaders()
-	                    },
-	                    credentials: 'include',
-	                    body: JSON.stringify(payload)
-	                });
-
-	                if (!res.ok) {
-	                    if (res.status === 413) {
-	                        showToast('error', '存储空间不足', 'Storage quota exceeded');
-	                        return null;
-	                    }
-	                    const errorText = await res.text();
-	                    throw new Error(errorText || 'Failed to save image');
-	                }
-
-	                const savedImage = await res.json();
+	                const { data, error } = await supabase.from('user_images').insert(record).select('id').single();
+	                if (error) throw error;
+	                const savedImage = data || null;
 	                showToast('success', '保存成功', 'Image saved to repository');
 
 	                // Reload images from repository
@@ -835,15 +820,8 @@ function canvasZoomReset() {
 	            if (!confirm('确定要删除这条记录吗？')) return;
 
 	            try {
-	                const res = await fetch(`/api/v1/images/${encodeURIComponent(imageId)}`, {
-	                    method: 'DELETE',
-	                    headers: csrfHeaders(),
-	                    credentials: 'include'
-	                });
-
-	                if (!res.ok) {
-	                    throw new Error('Failed to delete image');
-	                }
+	                const { error } = await supabase.from('user_images').delete().eq('id', imageId);
+	                if (error) throw error;
 
 	                showToast('success', '删除成功', 'Image deleted from repository');
 
@@ -1294,11 +1272,9 @@ async function generateImage() {
         const baseUrl = normalizeApiBaseUrl(state.config.baseUrl);
 
         // Make API call via backend (/api/v1/images/edits)
-        const response = await fetch('/api/v1/images/edits', {
+        const response = await apiFetch('/api/v1/images/edits', {
             method: 'POST',
-            credentials: 'include',
             headers: {
-                ...csrfHeaders(),
                 ...(apiKey ? { 'X-API-Key': apiKey } : {}),
                 ...(baseUrl ? { 'X-Base-Url': baseUrl } : {}),
             },
@@ -1333,6 +1309,32 @@ async function generateImage() {
             imageUrls.length > 1 ? 'Images generated' : 'Image generated',
             imageUrls.length > 1 ? `Generated ${imageUrls.length} images successfully` : 'Your image has been created successfully'
         );
+
+        // Save to Supabase repository.
+        const userId = await getUserId();
+        if (userId) {
+            const rows = imageUrls.map((url, idx) => ({
+                user_id: userId,
+                title: null,
+                model: elements.modelSelect.value || 'unknown',
+                prompt: prompt,
+                status: 'completed',
+                image_url: url,
+                metadata: {
+                    source: 'image-editor',
+                    aspect_ratio: elements.aspectRatio.value || null,
+                    image_size: elements.imageSize.value || null,
+                    index: idx,
+                },
+                request: (data && typeof data === 'object' && data.request) ? data.request : null,
+                response: (data && typeof data === 'object' && data.response) ? data.response : data,
+            }));
+            const { error } = await retrySupabase(() => supabase.from('user_images').insert(rows));
+            if (error) {
+                console.warn('Failed to save images to repository:', error);
+                showToast('error', 'Database Error', formatSupabaseError(error));
+            }
+        }
 
         // Refresh repository to show the newly saved image
         loadImagesFromRepository();

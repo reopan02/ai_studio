@@ -1,11 +1,11 @@
 import { createApp } from 'vue';
 import StoragePage from './storage-page.vue';
 import '@/styles/app-static.css';
-import '@/legacy/storage-legacy';
+import { requireSession } from '@/shared/supabase';
 
-// The legacy storage module registers an init hook; call it before DOMContentLoaded.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const legacy = (globalThis as any).StoragePage;
-if (legacy?.init) legacy.init();
+async function bootstrap() {
+  await requireSession();
+  createApp(StoragePage).mount('#app');
+}
 
-createApp(StoragePage).mount('#app');
+void bootstrap();

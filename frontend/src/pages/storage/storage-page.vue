@@ -13,9 +13,6 @@
                   <h1>我的存储库</h1>
               </div>
               <div class="header-actions">
-                  <a href="/admin" class="btn btn-secondary" id="adminLink" style="display:none; text-decoration: none;">
-                      Admin
-                  </a>
                   <a href="/video" class="btn btn-secondary">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M19 12H5M12 19l-7-7 7-7"/>
@@ -35,15 +32,67 @@
                           </svg>
                           视频生成记录
                       </div>
-                      <span class="section-count" id="videoCount">加载中...</span>
+                      <span class="section-count">{{ videoCountLabel }}</span>
                   </div>
               </div>
-              <div id="storageGrid" class="storage-grid">
-                  <div class="empty-state">
+              <div class="storage-grid">
+                  <div v-if="loadingVideos" class="empty-state">
                       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                           <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                       </svg>
                       <h3>加载中...</h3>
+                  </div>
+
+                  <div v-else-if="videos.length === 0" class="empty-state" style="grid-column: 1/-1;">
+                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="margin-bottom: 16px;">
+                          <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      </svg>
+                      <h3>暂无视频记录</h3>
+                      <p style="margin-top: 8px;">开始生成您的第一个视频吧</p>
+                      <a href="/video" style="color: #6366f1; text-decoration: none; margin-top: 12px; display: inline-block; font-weight: 500;">去生成视频 →</a>
+                  </div>
+
+                  <div v-else v-for="v in videos" :key="v.id" class="video-card">
+                      <div class="video-thumb">
+                          <video v-if="v.video_url" :src="v.video_url" controls preload="metadata"></video>
+                          <div v-else style="color: white; opacity: 0.9;">暂无预览</div>
+                      </div>
+                      <div class="video-info">
+                          <div class="video-title">{{ v.title || '未命名视频' }}</div>
+                          <div class="video-meta">
+                              <span class="badge" :class="modelBadgeClass(v.model)">{{ v.model }}</span>
+                              <span style="color: #94a3b8;">{{ formatDateTime(v.created_at) }}</span>
+                          </div>
+                          <div class="video-prompt" :title="v.prompt">{{ v.prompt }}</div>
+                          <div class="video-actions">
+                              <a
+                                v-if="v.video_url"
+                                :href="v.video_url"
+                                download
+                                class="btn btn-secondary btn-sm"
+                                style="text-decoration: none; flex: 1; justify-content: center;"
+                              >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                      <polyline points="7 10 12 15 17 10"/>
+                                      <line x1="12" y1="15" x2="12" y2="3"/>
+                                  </svg>
+                                  下载
+                              </a>
+                              <button
+                                type="button"
+                                class="btn btn-secondary btn-sm danger"
+                                style="flex: 1; justify-content: center;"
+                                @click="deleteVideo(v.id)"
+                              >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                      <polyline points="3 6 5 6 21 6"/>
+                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                  </svg>
+                                  删除
+                              </button>
+                          </div>
+                      </div>
                   </div>
               </div>
           </section>
@@ -60,17 +109,71 @@
                           </svg>
                           图像生成记录
                       </div>
-                      <span class="section-count" id="imageCount">加载中...</span>
+                      <span class="section-count">{{ imageCountLabel }}</span>
                   </div>
               </div>
-              <div id="imageGrid" class="storage-grid">
-                  <div class="empty-state">
+              <div class="storage-grid">
+                  <div v-if="loadingImages" class="empty-state">
                       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                           <rect x="3" y="3" width="18" height="18" rx="2"/>
                           <circle cx="8.5" cy="8.5" r="1.5"/>
                           <polyline points="21 15 16 10 5 21"/>
                       </svg>
                       <h3>加载中...</h3>
+                  </div>
+
+                  <div v-else-if="images.length === 0" class="empty-state" style="grid-column: 1/-1;">
+                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="margin-bottom: 16px;">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/>
+                          <circle cx="8.5" cy="8.5" r="1.5"/>
+                          <polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                      <h3>暂无图像记录</h3>
+                      <p style="margin-top: 8px;">开始生成您的第一张图片吧</p>
+                      <a href="/image-generate" style="color: #6366f1; text-decoration: none; margin-top: 12px; display: inline-block; font-weight: 500;">去生成图片 →</a>
+                  </div>
+
+                  <div v-else v-for="img in images" :key="img.id" class="video-card">
+                      <div class="video-thumb">
+                          <img v-if="img.image_url" :src="img.image_url" alt="Generated" loading="lazy" decoding="async" />
+                          <div v-else style="color: white; opacity: 0.9;">暂无预览</div>
+                      </div>
+                      <div class="video-info">
+                          <div class="video-title">{{ img.title || '未命名图像' }}</div>
+                          <div class="video-meta">
+                              <span class="badge" :class="modelBadgeClass(img.model)">{{ img.model }}</span>
+                              <span style="color: #94a3b8;">{{ formatDateTime(img.created_at) }}</span>
+                          </div>
+                          <div class="video-prompt" :title="img.prompt">{{ img.prompt }}</div>
+                          <div class="video-actions">
+                              <a
+                                v-if="img.image_url"
+                                :href="img.image_url"
+                                download
+                                class="btn btn-secondary btn-sm"
+                                style="text-decoration: none; flex: 1; justify-content: center;"
+                              >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                      <polyline points="7 10 12 15 17 10"/>
+                                      <line x1="12" y1="15" x2="12" y2="3"/>
+                                  </svg>
+                                  下载
+                              </a>
+                              <button
+                                type="button"
+                                class="btn btn-secondary btn-sm danger"
+                                style="flex: 1; justify-content: center;"
+                                @click="deleteImage(img.id)"
+                              >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                      <polyline points="3 6 5 6 21 6"/>
+                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                  </svg>
+                                  删除
+                              </button>
+                          </div>
+                      </div>
                   </div>
               </div>
           </section>
@@ -79,20 +182,111 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
-import { getCurrentUser } from '@/shared/auth';
+import { computed, onMounted, ref } from 'vue';
+import { supabase } from '@/shared/supabase';
 
-onMounted(async () => {
-  const adminLink = document.getElementById('adminLink');
-  if (!adminLink) return;
+type UserVideoRow = {
+  id: string;
+  title: string | null;
+  model: string;
+  prompt: string;
+  video_url: string | null;
+  created_at: string;
+};
+
+type UserImageRow = {
+  id: string;
+  title: string | null;
+  model: string;
+  prompt: string;
+  image_url: string | null;
+  created_at: string;
+};
+
+const videos = ref<UserVideoRow[]>([]);
+const images = ref<UserImageRow[]>([]);
+const loadingVideos = ref(true);
+const loadingImages = ref(true);
+
+const videoCountLabel = computed(() => {
+  if (loadingVideos.value) return '加载中...';
+  if (videos.value.length === 0) return '暂无记录';
+  return `${videos.value.length} 个视频`;
+});
+
+const imageCountLabel = computed(() => {
+  if (loadingImages.value) return '加载中...';
+  if (images.value.length === 0) return '暂无记录';
+  return `${images.value.length} 个图像`;
+});
+
+function formatDateTime(value: string): string {
   try {
-    const me = await getCurrentUser();
-    if (me?.is_admin) {
-      adminLink.style.display = 'inline-flex';
-    }
+    return new Date(value).toLocaleString('zh-CN');
   } catch {
-    // ignore
+    return value;
   }
+}
+
+function modelBadgeClass(model: string): string {
+  const value = String(model || '').toLowerCase();
+  if (value.includes('sora')) return 'badge-sora2';
+  if (value.includes('veo')) return 'badge-veo';
+  if (value.includes('seedance')) return 'badge-seedance';
+  return 'badge-default';
+}
+
+async function loadVideos() {
+  loadingVideos.value = true;
+  try {
+    const { data, error } = await supabase
+      .from('user_videos')
+      .select('id,title,model,prompt,video_url,created_at')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (error) throw error;
+    videos.value = (data || []) as UserVideoRow[];
+  } finally {
+    loadingVideos.value = false;
+  }
+}
+
+async function loadImages() {
+  loadingImages.value = true;
+  try {
+    const { data, error } = await supabase
+      .from('user_images')
+      .select('id,title,model,prompt,image_url,created_at')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (error) throw error;
+    images.value = (data || []) as UserImageRow[];
+  } finally {
+    loadingImages.value = false;
+  }
+}
+
+async function deleteVideo(id: string) {
+  if (!confirm('确定要删除这条记录吗？')) return;
+  const { error } = await supabase.from('user_videos').delete().eq('id', id);
+  if (!error) {
+    videos.value = videos.value.filter((v) => v.id !== id);
+  }
+}
+
+async function deleteImage(id: string) {
+  if (!confirm('确定要删除这条记录吗？')) return;
+  const { error } = await supabase.from('user_images').delete().eq('id', id);
+  if (!error) {
+    images.value = images.value.filter((v) => v.id !== id);
+  }
+}
+
+onMounted(() => {
+  void loadVideos();
+  void loadImages();
 });
 </script>
 

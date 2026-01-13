@@ -1,5 +1,11 @@
 import { createApp } from 'vue';
 import EcommerceImagePage from './ecommerce-image-page.vue';
 import '@/styles/ecommerce-image.css';
+import { requireSession } from '@/shared/supabase';
 
-createApp(EcommerceImagePage).mount('#app');
+async function bootstrap() {
+  await requireSession();
+  createApp(EcommerceImagePage).mount('#app');
+}
+
+void bootstrap();

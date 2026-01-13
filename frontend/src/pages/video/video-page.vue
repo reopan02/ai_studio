@@ -26,11 +26,6 @@
                       <polyline points="12 6 12 12 16 14"/>
                   </svg>
               </button>
-              <a href="/admin" class="btn btn-ghost btn-icon" id="adminLink" title="Admin" style="text-decoration: none; display: none;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 1l3 5 5 1-3.5 4.2.8 5.8L12 15l-5.3 2.9.8-5.8L4 7l5-1 3-5z"></path>
-                  </svg>
-              </a>
               <a href="/storage" class="btn btn-ghost btn-icon" title="存储库" style="text-decoration: none;">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -430,20 +425,3 @@
   
   </div>
 </template>
-
-<script setup lang="ts">
-import { onMounted } from 'vue';
-import { getCurrentUser } from '@/shared/auth';
-
-onMounted(async () => {
-  try {
-    const me = await getCurrentUser();
-    if (me?.is_admin) {
-      const adminLink = document.getElementById('adminLink');
-      if (adminLink) adminLink.style.display = 'inline-flex';
-    }
-  } catch {
-    // ignore
-  }
-});
-</script>

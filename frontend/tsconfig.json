@@ -3,6 +3,7 @@
     "target": "ES2022",
     "useDefineForClassFields": true,
     "module": "ESNext",
+    "moduleDetection": "force",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "moduleResolution": "Bundler",
@@ -19,4 +20,3 @@
   },
   "include": ["src/**/*.ts", "src/**/*.vue"]
 }
-
