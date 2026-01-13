@@ -27,10 +27,6 @@
           <stop offset="0%" stop-color="#EC4899"/>
           <stop offset="100%" stop-color="#8B5CF6"/>
         </linearGradient>
-        <linearGradient id="grad-runninghub-video" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#06B6D4"/>
-          <stop offset="100%" stop-color="#8B5CF6"/>
-        </linearGradient>
         <linearGradient id="grad-admin" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#64748B"/>
           <stop offset="100%" stop-color="#3B82F6"/>
@@ -150,17 +146,6 @@
           </svg>
           <div class="portal-title">AI 视频</div>
           <div class="portal-desc">Sora、Veo、Seedance 等模型</div>
-        </a>
-
-        <a href="/runninghub-video" class="card portal-card portal-card-runninghub-video">
-          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-runninghub-video)" stroke="none">
-            <rect x="2" y="2" width="20" height="20" rx="3"/>
-            <path d="M7 16h10l-2 3H9l-2-3z" fill="white" opacity="0.9"/>
-            <path d="M8 13l2-5h4l2 5H8z" fill="white"/>
-            <circle cx="12" cy="6.5" r="1.5" fill="white" opacity="0.85"/>
-          </svg>
-          <div class="portal-title">全能视频 S</div>
-          <div class="portal-desc">RunningHub 图生视频（支持真人）</div>
         </a>
 
         <a href="/image-generate" class="card portal-card portal-card-image-gen">
@@ -687,10 +672,6 @@ onMounted(async () => {
 
 .portal-card-image-edit::before {
   background: linear-gradient(135deg, rgba(236, 72, 153, 0.08), rgba(139, 92, 246, 0.08));
-}
-
-.portal-card-runninghub-video::before {
-  background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(139, 92, 246, 0.08));
 }
 
 .portal-card-admin::before {

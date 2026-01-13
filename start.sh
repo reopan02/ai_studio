@@ -1,2 +1,3 @@
 #!/bin/bash
-./scripts/manage.sh start
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/scripts/manage.sh" start

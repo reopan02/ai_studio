@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 from uuid import uuid4
 
-import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from app.api.deps import AuthContext, get_current_user
-from app.config import get_settings
 from app.core.product_storage import ProductStorageError, delete_product_image, get_image_format, save_product_image
 
 router = APIRouter()
@@ -44,12 +42,6 @@ class ProductImageDeleteRequest(BaseModel):
 
 class ProductImageDeleteResponse(BaseModel):
     deleted: bool
-
-
-class RunningHubImageUploadResponse(BaseModel):
-    image_url: str
-    relative_url: str
-    image_size_bytes: int
 
 
 @router.post("/uploads/products", response_model=ProductImageUploadResponse)
@@ -139,67 +131,3 @@ async def delete_product_image_upload(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
     return ProductImageDeleteResponse(deleted=deleted)
-
-
-@router.post("/uploads/runninghub/image", response_model=RunningHubImageUploadResponse)
-async def upload_runninghub_image(
-    request: Request,
-    image: UploadFile = File(...),
-    auth: AuthContext = Depends(get_current_user),
-):
-    raw = await image.read()
-    if not raw:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty image file")
-
-    try:
-        detected_format = get_image_format(raw)
-    except ProductStorageError:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid or unsupported image file")
-
-    if detected_format not in {"jpeg", "jpg", "png"}:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Only JPEG and PNG images are supported")
-
-    ext = "png" if detected_format == "png" else "jpg"
-    filename = f"{uuid4()}.{ext}"
-
-    settings = get_settings()
-    upload_url = settings.UPLOAD_URL
-    upload_apikey = settings.UPLOAD_APIKEY
-
-    if upload_url and upload_apikey:
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                files = {"file": (filename, raw, f"image/{ext}")}
-                headers = {"Authorization": f"Bearer {upload_apikey}"}
-                resp = await client.post(upload_url, files=files, headers=headers)
-                resp.raise_for_status()
-                data = resp.json()
-                public_url = data.get("url", "")
-                if not public_url:
-                    raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Upload API did not return url")
-                return RunningHubImageUploadResponse(
-                    image_url=public_url,
-                    relative_url="",
-                    image_size_bytes=len(raw),
-                )
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Upload failed: {exc.response.text}")
-        except HTTPException:
-            raise
-        except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Upload failed: {exc}")
-
-    user_dir = Path("app/static/uploads/runninghub") / auth.user_id
-    user_dir.mkdir(parents=True, exist_ok=True)
-    file_path = user_dir / filename
-    file_path.write_bytes(raw)
-
-    relative_url = f"/uploads/runninghub/{auth.user_id}/{filename}"
-    base = str(request.base_url).rstrip("/")
-    public_url = f"{base}{relative_url}"
-
-    return RunningHubImageUploadResponse(
-        image_url=public_url,
-        relative_url=relative_url,
-        image_size_bytes=len(raw),
-    )

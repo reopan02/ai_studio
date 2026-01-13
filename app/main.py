@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.api.v1 import auth, image_proxy, images, product_recognition, runninghub, storage, tasks, uploads, video
+from app.api.v1 import auth, image_proxy, images, product_recognition, storage, tasks, uploads, video
 from app.config import get_settings
 from app.core.static_files import CacheControlStaticFiles
 
@@ -31,7 +31,6 @@ app.add_middleware(
 
 app.include_router(video.router, prefix="/api/v1", tags=["Video Generation"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["Task Management"])
-app.include_router(runninghub.router, prefix="/api/v1", tags=["RunningHub"])
 app.include_router(image_proxy.router, prefix="/api/v1", tags=["Images"])
 app.include_router(product_recognition.router, prefix="/api/v1", tags=["Products"])
 app.include_router(uploads.router, prefix="/api/v1", tags=["Uploads"])
@@ -62,11 +61,6 @@ async def storage_page():
 @app.get("/video")
 async def video_page():
     return FileResponse("app/static/video.html")
-
-
-@app.get("/runninghub-video")
-async def runninghub_video_page():
-    return FileResponse("app/static/runninghub-video.html")
 
 
 @app.get("/dashboard")

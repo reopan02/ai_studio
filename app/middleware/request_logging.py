@@ -47,7 +47,7 @@ def _redact(obj: Any) -> Any:
 def _sanitize_headers(headers: Dict[str, str]) -> Dict[str, str]:
     redacted_headers: Dict[str, str] = {}
     for key, value in headers.items():
-        if key.lower() in {"authorization", "cookie", "set-cookie", "x-api-key", "x-runninghub-token"}:
+        if key.lower() in {"authorization", "cookie", "set-cookie", "x-api-key"}:
             continue
         redacted_headers[key] = value
     return redacted_headers

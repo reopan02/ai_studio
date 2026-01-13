@@ -1,10 +1,14 @@
 #!/bin/bash
 
+# Move to project root (works regardless of where the script is invoked from).
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_ROOT" || exit 1
+
 # 尝试激活虚拟环境
-if [ -f "venv/bin/activate" ]; then
+if [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+elif [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
-elif [ -f "../venv/bin/activate" ]; then
-    source ../venv/bin/activate
 fi
 
 # 配置

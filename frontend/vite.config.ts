@@ -24,8 +24,7 @@ export default defineConfig(({ command }) => ({
         image: fileURLToPath(new URL('./image.html', import.meta.url)),
         products: fileURLToPath(new URL('./products.html', import.meta.url)),
         'ecommerce-image': fileURLToPath(new URL('./ecommerce-image.html', import.meta.url)),
-        'image-generate': fileURLToPath(new URL('./image-generate.html', import.meta.url)),
-        'runninghub-video': fileURLToPath(new URL('./runninghub-video.html', import.meta.url))
+        'image-generate': fileURLToPath(new URL('./image-generate.html', import.meta.url))
       }
     }
   }

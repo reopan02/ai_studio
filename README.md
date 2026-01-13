@@ -16,7 +16,6 @@
 
 - `API_KEY`：中转/提供商 Key（部分功能用到）
 - `SUPABASE_JWT_SECRET`：必须与 Supabase `JWT_SECRET` 一致（后端用来校验 Supabase Access Token）
-- `RUNNINGHUB_API_KEY`（可选）：RunningHub 默认 Token（也可在页面里手动输入）
 
 前端（`frontend/.env`）需要：
 

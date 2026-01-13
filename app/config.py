@@ -11,9 +11,6 @@ class Settings(BaseSettings):
     API_KEY: str
     LLM_MODEL: str = "openai/gpt-4o-mini"
 
-    RUNNINGHUB_BASE_URL: str = "https://www.runninghub.cn"
-    RUNNINGHUB_API_KEY: Optional[str] = None
-
     UPLOAD_URL: Optional[str] = None
     UPLOAD_APIKEY: Optional[str] = None
 
