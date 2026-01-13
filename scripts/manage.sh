@@ -19,6 +19,9 @@ PORT=8887
 LOG_FILE="server.log"
 PID_FILE="server.pid"
 
+# Supabase (database) compose directory (created by following infra/supabase/README.md)
+SUPABASE_COMPOSE_DIR="${SUPABASE_COMPOSE_DIR:-$PROJECT_ROOT/.supabase/docker}"
+
 # 颜色定义
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -26,8 +29,79 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 usage() {
-    echo "使用方法: $0 {start|stop|restart|status|logs}"
+    echo "使用方法: $0 {start|stop|restart|status|logs|db-start|db-stop|db-restart|db-status}"
     exit 1
+}
+
+detect_compose_cmd() {
+    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD=(docker compose)
+        return 0
+    fi
+    if command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE_CMD=(docker-compose)
+        return 0
+    fi
+    return 1
+}
+
+has_supabase_compose() {
+    if [ ! -d "$SUPABASE_COMPOSE_DIR" ]; then
+        return 1
+    fi
+    if [ -f "$SUPABASE_COMPOSE_DIR/docker-compose.yml" ] || [ -f "$SUPABASE_COMPOSE_DIR/docker-compose.yaml" ] || [ -f "$SUPABASE_COMPOSE_DIR/compose.yml" ] || [ -f "$SUPABASE_COMPOSE_DIR/compose.yaml" ]; then
+        return 0
+    fi
+    return 1
+}
+
+db_start() {
+    if ! has_supabase_compose; then
+        echo -e "${YELLOW}[DB] 未检测到 Supabase docker compose 目录：$SUPABASE_COMPOSE_DIR（将跳过数据库启动）${NC}"
+        return 0
+    fi
+
+    if ! detect_compose_cmd; then
+        echo -e "${RED}[DB] 未检测到 docker compose（请安装 Docker Desktop / docker-compose），无法启动数据库${NC}"
+        return 1
+    fi
+
+    if [ ! -f "$SUPABASE_COMPOSE_DIR/.env" ] && [ -f "$SUPABASE_COMPOSE_DIR/.env.example" ]; then
+        cp "$SUPABASE_COMPOSE_DIR/.env.example" "$SUPABASE_COMPOSE_DIR/.env"
+        echo -e "${YELLOW}[DB] 已从 .env.example 生成 $SUPABASE_COMPOSE_DIR/.env，请按需修改（尤其是 JWT_SECRET 等）${NC}"
+    fi
+
+    echo -e "${GREEN}[DB] 正在启动 Supabase（Postgres/Auth/PostgREST）...${NC}"
+    (cd "$SUPABASE_COMPOSE_DIR" && "${COMPOSE_CMD[@]}" up -d)
+}
+
+db_stop() {
+    if ! has_supabase_compose; then
+        echo -e "${YELLOW}[DB] 未检测到 Supabase docker compose 目录：$SUPABASE_COMPOSE_DIR（将跳过数据库停止）${NC}"
+        return 0
+    fi
+
+    if ! detect_compose_cmd; then
+        echo -e "${RED}[DB] 未检测到 docker compose，无法停止数据库${NC}"
+        return 1
+    fi
+
+    echo -e "${YELLOW}[DB] 正在停止 Supabase...${NC}"
+    (cd "$SUPABASE_COMPOSE_DIR" && "${COMPOSE_CMD[@]}" down)
+}
+
+db_status() {
+    if ! has_supabase_compose; then
+        echo -e "${YELLOW}[DB] 未检测到 Supabase docker compose 目录：$SUPABASE_COMPOSE_DIR${NC}"
+        return 0
+    fi
+
+    if ! detect_compose_cmd; then
+        echo -e "${RED}[DB] 未检测到 docker compose，无法查看数据库状态${NC}"
+        return 1
+    fi
+
+    (cd "$SUPABASE_COMPOSE_DIR" && "${COMPOSE_CMD[@]}" ps)
 }
 
 is_running() {
@@ -119,6 +193,19 @@ case "$1" in
         ;;
     logs)
         logs
+        ;;
+    db-start)
+        db_start
+        ;;
+    db-stop)
+        db_stop
+        ;;
+    db-restart)
+        db_stop
+        db_start
+        ;;
+    db-status)
+        db_status
         ;;
     *)
         usage

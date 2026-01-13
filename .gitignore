@@ -23,3 +23,4 @@ app/static/uploads/
 nul
 frontend/node_modules/
 frontend/.vite/
+.ssh/
