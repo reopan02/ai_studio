@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { getUserId, supabase } from '@/shared/supabase';
 
-document.addEventListener('DOMContentLoaded', () => {
+// Use IIFE since this module is dynamically imported after Vue component is mounted
+(function init() {
     // DOM Elements
     const els = {
         apiKey: document.getElementById('apiKey'),
@@ -2900,4 +2901,4 @@ document.addEventListener('DOMContentLoaded', () => {
             if (t) updateTaskDuration(t);
         }
     }, 1000);
-});
+})();

@@ -6,7 +6,10 @@
       "Bash(openspec validate:*)",
       "Bash(openspec show:*)",
       "Bash(ls:*)",
-      "mcp__chrome-devtools__list_pages"
+      "mcp__chrome-devtools__list_pages",
+      "Bash(npm run build:*)",
+      "Bash(npm install)",
+      "Bash(chmod:*)"
     ]
   }
 }

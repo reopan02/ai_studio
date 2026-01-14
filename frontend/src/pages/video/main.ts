@@ -5,8 +5,9 @@ import { requireSession } from '@/shared/supabase';
 
 async function bootstrap() {
   await requireSession();
-  await import('@/legacy/video-legacy');
   createApp(VideoPage).mount('#app');
+  // Import legacy script AFTER Vue component is mounted so DOM elements exist
+  await import('@/legacy/video-legacy');
 }
 
 void bootstrap();
