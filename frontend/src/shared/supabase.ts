@@ -9,9 +9,11 @@ function isLocalhostHost(hostname: string): boolean {
 
 function getDefaultSupabaseUrlFromLocation(): string | undefined {
   if (typeof window === 'undefined') return undefined;
-  const { protocol, hostname } = window.location;
-  if (!protocol || !hostname) return undefined;
-  return `${protocol}//${hostname}:8000`;
+  const { protocol, host } = window.location;
+  if (!protocol || !host) return undefined;
+  // Use the proxy endpoint '/supabase' instead of direct port 8000 access
+  // This solves issues with mixed content (HTTPS site -> HTTP:8000) and blocked ports
+  return `${protocol}//${host}/supabase`;
 }
 
 function resolveSupabaseUrl(): string | undefined {
