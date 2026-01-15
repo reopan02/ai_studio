@@ -716,10 +716,15 @@ async function createProduct() {
     const userId = await getUserId();
     if (!userId) throw new Error('Not authenticated');
 
+    // Generate UUID v4 - use crypto.randomUUID if available, otherwise polyfill
     const productId =
       globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function'
         ? globalThis.crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            const v = c === 'x' ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          });
 
     const uploadFd = new FormData();
     uploadFd.append('product_id', productId);
