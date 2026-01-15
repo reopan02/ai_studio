@@ -128,6 +128,24 @@
                               <option value="sora-2-pro">sora-2-pro</option>
                           </select>
                       </div>
+                      <div class="form-group">
+                          <label class="form-label">视频长度（seconds）</label>
+                          <select class="form-select" id="soraSeconds">
+                              <option value="4">4</option>
+                              <option value="8">8</option>
+                              <option value="12">12</option>
+                          </select>
+                      </div>
+                      <div class="form-group">
+                          <label class="form-label">视频分辨率（size）</label>
+                          <select class="form-select" id="soraSize">
+                              <option value="720x1280">720x1280</option>
+                              <option value="1280x720">1280x720</option>
+                              <option value="1024x1792">1024x1792（Pro）</option>
+                              <option value="1792x1024">1792x1024（Pro）</option>
+                          </select>
+                          <div class="form-hint">sora-2 仅支持 1280x720 / 720x1280</div>
+                      </div>
                   </div>
               </section>
   
@@ -139,39 +157,7 @@
                           <line x1="7" y1="2" x2="7" y2="22"></line>
                           <line x1="17" y1="2" x2="17" y2="22"></line>
                       </svg>
-                      Video Parameters
-                  </div>
-                  <div class="form-group">
-                      <label class="form-label">画幅比例</label>
-                      <select class="form-select" id="aspectRatio">
-                          <option value="16:9">16:9 (Landscape)</option>
-                          <option value="9:16">9:16 (Portrait)</option>
-                      </select>
-                  </div>
-                  <div class="form-group">
-                      <label class="form-label">时长（秒）</label>
-                      <select class="form-select" id="duration">
-                          <option value="10">10</option>
-                          <option value="15">15</option>
-                          <option value="25">25</option>
-                      </select>
-                  </div>
-                  <div class="form-group">
-                      <label class="form-label">选项</label>
-                      <div class="checkbox-group">
-                          <label class="checkbox-item">
-                              <input id="soraHd" type="checkbox">
-                              <span>HD（仅 Pro）</span>
-                          </label>
-                          <label class="checkbox-item">
-                              <input id="soraWatermark" type="checkbox">
-                              <span>水印</span>
-                          </label>
-                          <label class="checkbox-item">
-                              <input id="soraPrivate" type="checkbox">
-                              <span>私有</span>
-                          </label>
-                      </div>
+                      Task Settings
                   </div>
                   <div class="form-group">
                       <label class="form-label">任务名称（可选）</label>
@@ -254,7 +240,7 @@
                       </div>
                       <div class="prompt-upload">
                           <div class="upload-area upload-area-compact" id="promptDropzone">
-                              <input id="promptImages" type="file" accept="image/*" multiple>
+                              <input id="promptImages" type="file" accept="image/png,image/jpeg,image/webp">
                               <button id="promptPickFiles" type="button" class="upload-trigger upload-trigger-compact">
                                   <svg class="upload-icon upload-icon-compact" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -262,7 +248,7 @@
                                       <line x1="12" y1="3" x2="12" y2="15"/>
                                   </svg>
                                   <p class="upload-text upload-text-compact"><strong>上传参考图</strong></p>
-                                  <p class="upload-hint upload-hint-compact">拖拽 / 粘贴 / 点击</p>
+                                  <p class="upload-hint upload-hint-compact">拖拽 / 粘贴 / 点击（需匹配所选 size）</p>
                               </button>
                               <div class="upload-feedback" id="promptUploadFeedback" aria-live="polite">
                                   <div class="upload-feedback-text" id="promptUploadText">处理中…</div>

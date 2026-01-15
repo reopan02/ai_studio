@@ -88,8 +88,8 @@ class GeminiImageClient:
                 # Convert bytes to base64
                 b64_data = base64.b64encode(content).decode("utf-8")
                 parts.append({
-                    "inline_data": {
-                        "mime_type": content_type,
+                    "inlineData": {
+                        "mimeType": content_type,
                         "data": b64_data
                     }
                 })
@@ -97,26 +97,31 @@ class GeminiImageClient:
         # Add text prompt
         parts.append({"text": prompt})
 
-        # Build request payload
+        # Build request payload per API spec (banana.md)
         payload: dict[str, Any] = {
-            "contents": [{"parts": parts}],
+            "contents": [{
+                "role": "user",
+                "parts": parts
+            }],
             "generationConfig": {
-                "responseModalities": ["Text", "Image"],
+                "responseModalities": ["IMAGE"],
             }
         }
 
-        # Add image config for aspect ratio
+        # Add image config for aspect ratio and image size
+        image_config: dict[str, Any] = {}
         if aspect_ratio:
-            payload["generationConfig"]["imageConfig"] = {
-                "aspectRatio": aspect_ratio
-            }
+            image_config["aspectRatio"] = aspect_ratio
 
         # Add image_size for Gemini 3 Pro (must be uppercase K)
-        if image_size and model == "gemini-3-pro-image-preview":
+        if image_size:
             # Ensure uppercase K
             normalized_size = image_size.upper().replace("K", "K")
-            if normalized_size in ("1K", "2K", "4K"):
-                payload["generationConfig"]["image_size"] = normalized_size
+            if normalized_size in ("2K", "4K"):
+                image_config["imageSize"] = normalized_size
+
+        if image_config:
+            payload["generationConfig"]["imageConfig"] = image_config
 
         settings = get_settings()
         retrying = AsyncRetrying(

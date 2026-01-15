@@ -14,11 +14,8 @@ import { getUserId, supabase } from '@/shared/supabase';
         batchCount: document.getElementById('batchCount'),
         sora2Params: document.getElementById('sora2Params'),
         soraVariant: document.getElementById('soraVariant'),
-        aspectRatio: document.getElementById('aspectRatio'),
-        duration: document.getElementById('duration'),
-        soraHd: document.getElementById('soraHd'),
-        soraWatermark: document.getElementById('soraWatermark'),
-        soraPrivate: document.getElementById('soraPrivate'),
+        soraSeconds: document.getElementById('soraSeconds'),
+        soraSize: document.getElementById('soraSize'),
         soraImages: document.getElementById('soraImages'),
         soraDropzone: document.getElementById('soraDropzone'),
         soraPickFiles: document.getElementById('soraPickFiles'),
@@ -103,6 +100,8 @@ import { getUserId, supabase } from '@/shared/supabase';
     const imagesState = {
         items: [],
         editingId: null,
+        inputReferenceFile: null,
+        inputReferencePreviewUrl: null,
         readingCount: 0
     };
 
@@ -116,6 +115,17 @@ import { getUserId, supabase } from '@/shared/supabase';
         pollQueue: createRequestQueue(CONFIG.pollConcurrency),
         saveQueue: createRequestQueue(CONFIG.saveConcurrency)
     };
+
+    function clearReferenceImage() {
+        if (imagesState.inputReferencePreviewUrl && String(imagesState.inputReferencePreviewUrl).startsWith('blob:')) {
+            try {
+                URL.revokeObjectURL(imagesState.inputReferencePreviewUrl);
+            } catch {}
+        }
+        imagesState.inputReferenceFile = null;
+        imagesState.inputReferencePreviewUrl = null;
+        imagesState.items = [];
+    }
 
     // Load Config
     els.apiKey.value = localStorage.getItem('video_api_key') || '';
@@ -139,14 +149,14 @@ import { getUserId, supabase } from '@/shared/supabase';
         els.soraVariant.value = savedSoraVariant;
     }
 
-    const savedAspectRatio = localStorage.getItem('video_aspect_ratio');
-    if (savedAspectRatio && Array.from(els.aspectRatio.options).some(o => o.value === savedAspectRatio)) {
-        els.aspectRatio.value = savedAspectRatio;
+    const savedSoraSeconds = localStorage.getItem('video_sora_seconds');
+    if (savedSoraSeconds && els.soraSeconds && Array.from(els.soraSeconds.options).some(o => o.value === savedSoraSeconds)) {
+        els.soraSeconds.value = savedSoraSeconds;
     }
 
-    const savedDuration = localStorage.getItem('video_duration');
-    if (savedDuration && Array.from(els.duration.options).some(o => o.value === savedDuration)) {
-        els.duration.value = savedDuration;
+    const savedSoraSize = localStorage.getItem('video_sora_size');
+    if (savedSoraSize && els.soraSize && Array.from(els.soraSize.options).some(o => o.value === savedSoraSize)) {
+        els.soraSize.value = savedSoraSize;
     }
 
     const savedBatchCount = localStorage.getItem('video_batch_count');
@@ -342,19 +352,22 @@ import { getUserId, supabase } from '@/shared/supabase';
         localStorage.setItem('video_model', els.modelSelect.value);
         syncModelUI();
     });
-    els.soraVariant.addEventListener('change', () => {
-        localStorage.setItem('video_sora_variant', els.soraVariant.value);
-        syncSoraConstraints();
-    });
-    els.aspectRatio.addEventListener('change', () => {
-        localStorage.setItem('video_aspect_ratio', els.aspectRatio.value);
-    });
-    els.duration.addEventListener('change', () => {
-        localStorage.setItem('video_duration', els.duration.value);
-        syncSoraConstraints();
-    });
-
-    els.soraHd.addEventListener('change', syncSoraConstraints);
+    if (els.soraVariant) {
+        els.soraVariant.addEventListener('change', () => {
+            localStorage.setItem('video_sora_variant', els.soraVariant.value);
+            syncSoraConstraints();
+        });
+    }
+    if (els.soraSeconds) {
+        els.soraSeconds.addEventListener('change', () => {
+            localStorage.setItem('video_sora_seconds', els.soraSeconds.value);
+        });
+    }
+    if (els.soraSize) {
+        els.soraSize.addEventListener('change', () => {
+            localStorage.setItem('video_sora_size', els.soraSize.value);
+        });
+    }
 
     els.batchCount.addEventListener('change', () => {
         const n = Number.parseInt(String(els.batchCount.value || '1'), 10);
@@ -385,7 +398,7 @@ import { getUserId, supabase } from '@/shared/supabase';
 
     if (els.soraClearImages) {
         els.soraClearImages.addEventListener('click', () => {
-            imagesState.items = [];
+            clearReferenceImage();
             renderImagePreview();
             log('已清空参考图片', 'info');
         });
@@ -393,7 +406,7 @@ import { getUserId, supabase } from '@/shared/supabase';
 
     if (els.promptClearImages) {
         els.promptClearImages.addEventListener('click', () => {
-            imagesState.items = [];
+            clearReferenceImage();
             renderImagePreview();
             log('已清空参考图片', 'info');
         });
@@ -1024,26 +1037,20 @@ import { getUserId, supabase } from '@/shared/supabase';
         if (els.modelSelect.value !== 'sora2') return;
 
         const variant = els.soraVariant.value;
-        const duration = Number.parseInt(els.duration.value, 10);
-
         const isPro = variant === 'sora-2-pro';
-        const allow25 = isPro;
-        const allowHd = isPro && duration !== 25;
 
-        // Duration option 25: only for Pro.
-        for (const opt of Array.from(els.duration.options)) {
-            if (opt.value === '25') {
-                opt.disabled = !allow25;
-            }
-        }
-        if (!allow25 && duration === 25) {
-            els.duration.value = '15';
+        if (!els.soraSize) return;
+
+        const allowed = new Set(isPro ? ['1280x720', '720x1280', '1024x1792', '1792x1024'] : ['1280x720', '720x1280']);
+        for (const opt of Array.from(els.soraSize.options)) {
+            opt.disabled = !allowed.has(opt.value);
         }
 
-        // HD: only for Pro; disabled when duration=25.
-        els.soraHd.disabled = !allowHd;
-        if (!allowHd) {
-            els.soraHd.checked = false;
+        const current = String(els.soraSize.value || '').trim();
+        if (!allowed.has(current)) {
+            const fallback = allowed.has('720x1280') ? '720x1280' : Array.from(allowed)[0];
+            els.soraSize.value = fallback;
+            localStorage.setItem('video_sora_size', fallback);
         }
     }
 
@@ -1233,22 +1240,27 @@ import { getUserId, supabase } from '@/shared/supabase';
         switch (modelKey) {
             case 'sora2':
                 return {
-                    createPath: '/v2/videos/generations',
-                    statusPath: (taskId) => `/v2/videos/generations/${enc(taskId)}`
+                    createPath: '/v1/videos',
+                    createBodyType: 'multipart',
+                    statusPath: (videoId) => `/v1/videos/${enc(videoId)}`,
+                    contentPath: (videoId) => `/v1/videos/${enc(videoId)}/content`
                 };
             case 'veo':
                 return {
                     createPath: '/v1/video/veo/text-to-video',
+                    createBodyType: 'json',
                     statusPath: (taskId) => `/v1/video/veo/tasks/${enc(taskId)}`
                 };
             case 'seedance':
                 return {
                     createPath: '/v1/video/seedance/text-to-video',
+                    createBodyType: 'json',
                     statusPath: (taskId) => `/v1/video/seedance/tasks/${enc(taskId)}`
                 };
             case 'newmodel':
                 return {
                     createPath: '/v1/video/newmodel/text-to-video',
+                    createBodyType: 'json',
                     statusPath: (taskId) => `/v1/video/newmodel/tasks/${enc(taskId)}`
                 };
             default:
@@ -1295,11 +1307,49 @@ import { getUserId, supabase } from '@/shared/supabase';
     }
 
     function extractErrorMessage(data, fallback) {
+        const unwrap = (value) => {
+            let current = value;
+            for (let i = 0; i < 3; i += 1) {
+                if (typeof current === 'string') {
+                    const trimmed = current.trim();
+                    if (!trimmed) return '';
+                    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                        try {
+                            current = JSON.parse(trimmed);
+                            continue;
+                        } catch {
+                            return current;
+                        }
+                    }
+                    return current;
+                }
+                if (current && typeof current === 'object') {
+                    const errObj = current.error;
+                    if (errObj && typeof errObj === 'object') {
+                        const msg = errObj.message ?? errObj.detail ?? errObj.error;
+                        if (typeof msg === 'string') return unwrap(msg);
+                    }
+                    const msg = current.detail ?? current.error ?? current.message;
+                    if (typeof msg === 'string') {
+                        current = msg;
+                        continue;
+                    }
+                    try {
+                        return JSON.stringify(current);
+                    } catch {
+                        return String(value || '');
+                    }
+                }
+                return String(current ?? '');
+            }
+            return typeof current === 'string' ? current : String(current ?? '');
+        };
+
         if (typeof data === 'string') return data;
         if (!data || typeof data !== 'object') return fallback;
 
         const detail = data.detail ?? data.error ?? data.message;
-        if (typeof detail === 'string') return detail;
+        if (typeof detail === 'string') return unwrap(detail);
 
         if (Array.isArray(detail)) {
             return detail
@@ -1313,7 +1363,7 @@ import { getUserId, supabase } from '@/shared/supabase';
         }
 
         try {
-            return JSON.stringify(detail);
+            return unwrap(detail);
         } catch {
             return fallback;
         }
@@ -1496,6 +1546,111 @@ import { getUserId, supabase } from '@/shared/supabase';
             return;
         }
 
+        const clearInputReference = () => {
+            if (imagesState.inputReferencePreviewUrl && String(imagesState.inputReferencePreviewUrl).startsWith('blob:')) {
+                try {
+                    URL.revokeObjectURL(imagesState.inputReferencePreviewUrl);
+                } catch {}
+            }
+            imagesState.inputReferenceFile = null;
+            imagesState.inputReferencePreviewUrl = null;
+            imagesState.items = [];
+        };
+
+        const maybeSyncSizeToFile = async (file) => {
+            if (!file || !els.soraSize) return;
+            let url;
+            try {
+                url = URL.createObjectURL(file);
+                const img = new Image();
+                img.decoding = 'async';
+                img.src = url;
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = () => reject(new Error('参考图解码失败'));
+                });
+                const w = img.naturalWidth || 0;
+                const h = img.naturalHeight || 0;
+                if (!w || !h) return;
+                const sizeStr = `${w}x${h}`;
+                if (Array.from(els.soraSize.options).some((o) => o.value === sizeStr && !o.disabled)) {
+                    els.soraSize.value = sizeStr;
+                    localStorage.setItem('video_sora_size', sizeStr);
+                }
+            } catch {
+                // Ignore auto-sync failures.
+            } finally {
+                if (url) {
+                    try {
+                        URL.revokeObjectURL(url);
+                    } catch {}
+                }
+            }
+        };
+
+        if (source === 'prompt') {
+            const file = imageFiles[0];
+            if (imageFiles.length > 1) {
+                log('仅使用第一张参考图作为 input_reference', 'warning');
+            }
+
+            imagesState.readingCount += 1;
+            setUploadBusy(source, true);
+            setUploadFeedback(source, {
+                isProcessing: true,
+                state: 'clear',
+                text: '读取中…',
+                progress: 10,
+                meta: `${file.name} · ${formatBytes(file.size)}`
+            });
+
+            try {
+                clearInputReference();
+                imagesState.inputReferenceFile = file;
+                imagesState.inputReferencePreviewUrl = URL.createObjectURL(file);
+
+                const id =
+                    globalThis.crypto && globalThis.crypto.randomUUID
+                        ? globalThis.crypto.randomUUID()
+                        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                imagesState.items = [
+                    {
+                        id,
+                        kind: 'file',
+                        value: imagesState.inputReferencePreviewUrl,
+                        name: file.name || 'input_reference',
+                        size: file.size || 0
+                    }
+                ];
+
+                await maybeSyncSizeToFile(file);
+                renderImagePreview();
+                setUploadFeedback(source, {
+                    state: 'success',
+                    text: '已添加参考图',
+                    meta: '将作为 input_reference 上传',
+                    progress: 100
+                });
+                setTimeout(() => setUploadFeedback(source, { isProcessing: false }), 700);
+                setTimeout(() => setUploadFeedback(source, { state: 'clear' }), 1400);
+            } catch (e) {
+                clearInputReference();
+                setUploadFeedback(source, {
+                    state: 'error',
+                    text: '添加失败',
+                    meta: String(e?.message || e || ''),
+                    progress: 0
+                });
+                setTimeout(() => setUploadFeedback(source, { isProcessing: false }), 1400);
+                log(`添加参考图失败: ${e.message || e}`, 'error');
+            } finally {
+                imagesState.readingCount = Math.max(0, imagesState.readingCount - 1);
+                setUploadBusy(source, imagesState.readingCount > 0);
+                renderImagePreview();
+            }
+            return;
+        }
+
         imagesState.readingCount += imageFiles.length;
         setUploadBusy(source, true);
         setUploadFeedback(source, {
@@ -1651,7 +1806,10 @@ import { getUserId, supabase } from '@/shared/supabase';
             img.loading = 'lazy';
             img.alt = item.name || 'image';
             img.src = item.value;
-            img.addEventListener('click', () => openImageModal(item.id));
+            img.addEventListener('click', () => {
+                if (item.kind === 'file') return;
+                openImageModal(item.id);
+            });
             img.onerror = () => {
                 img.src = fallbackSrc;
                 img.classList.add('is-fallback');
@@ -1660,16 +1818,6 @@ import { getUserId, supabase } from '@/shared/supabase';
             const actions = document.createElement('div');
             actions.className = 'preview-actions';
 
-            const editBtn = document.createElement('button');
-            editBtn.type = 'button';
-            editBtn.className = 'preview-btn';
-            editBtn.textContent = '编辑';
-            editBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openImageModal(item.id);
-            });
-
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
             removeBtn.className = 'preview-btn danger';
@@ -1677,17 +1825,32 @@ import { getUserId, supabase } from '@/shared/supabase';
             removeBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                imagesState.items = imagesState.items.filter((x) => x.id !== item.id);
+                if (item.kind === 'file') {
+                    clearReferenceImage();
+                } else {
+                    imagesState.items = imagesState.items.filter((x) => x.id !== item.id);
+                }
                 renderImagePreview();
                 log('已移除图片', 'info');
             });
 
-            actions.appendChild(editBtn);
+            if (item.kind !== 'file') {
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'preview-btn';
+                editBtn.textContent = '编辑';
+                editBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openImageModal(item.id);
+                });
+                actions.appendChild(editBtn);
+            }
             actions.appendChild(removeBtn);
 
             const caption = document.createElement('div');
             caption.className = 'preview-caption';
-            caption.textContent = item.kind === 'url' ? 'URL' : 'Base64';
+            caption.textContent = item.kind === 'file' ? 'File' : item.kind === 'url' ? 'URL' : 'Base64';
 
             el.appendChild(img);
             el.appendChild(actions);
@@ -1808,6 +1971,12 @@ import { getUserId, supabase } from '@/shared/supabase';
         return null;
     }
 
+    function isHttpUrl(value) {
+        if (typeof value !== 'string') return false;
+        const v = value.trim();
+        return /^https?:\/\//i.test(v);
+    }
+
     function parseProviderTask(data) {
         return {
             taskId: data?.task_id || data?.taskId || data?.id || null,
@@ -1815,14 +1984,46 @@ import { getUserId, supabase } from '@/shared/supabase';
             action: data?.action || null,
             rawStatus: data?.status || null,
             status: normalizeProviderStatus(data?.status),
-            progress: parseProgress(data?.progress),
+            progress: parseProgress(data?.progress ?? data?.process),
             failReason: data?.fail_reason || data?.failReason || data?.error || data?.detail || '',
-            submitTimeMs: parseEpochMs(data?.submit_time),
-            startTimeMs: parseEpochMs(data?.start_time),
-            finishTimeMs: parseEpochMs(data?.finish_time),
+            submitTimeMs: parseEpochMs(data?.created_at ?? data?.submit_time),
+            startTimeMs: parseEpochMs(data?.started_at ?? data?.start_time),
+            finishTimeMs: parseEpochMs(data?.completed_at ?? data?.finish_time),
             cost: typeof data?.cost === 'number' ? data.cost : null,
             videoUrl: extractVideoUrl(data)
         };
+    }
+
+    async function fetchVideoContentUrl(task) {
+        if (!task?.taskId) throw new Error('缺少 video_id');
+        if (!task?.apiSpec?.contentPath) throw new Error('该任务不支持 content 获取');
+
+        const url = `${task.baseUrl}${task.apiSpec.contentPath(task.taskId)}`;
+        const response = await fetch(url, {
+            headers: buildProviderAuthHeaders(task.apiKey, false),
+            signal: task.controller.signal
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            const data = await readJsonOrText(response);
+            if (!response.ok) {
+                const msg = data?.detail || data?.error || (typeof data === 'string' ? data : null);
+                throw new Error(msg || `获取内容失败（HTTP ${response.status}）`);
+            }
+            const extracted = extractVideoUrl(data);
+            if (extracted) return extracted;
+            throw new Error('content 响应未包含可用的视频链接');
+        }
+
+        if (!response.ok) {
+            const data = await readJsonOrText(response);
+            const msg = data?.detail || data?.error || (typeof data === 'string' ? data : null);
+            throw new Error(msg || `获取内容失败（HTTP ${response.status}）`);
+        }
+
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
     }
 
     function formatTime(ms) {
@@ -1913,34 +2114,34 @@ import { getUserId, supabase } from '@/shared/supabase';
 
         if (modelKey === 'sora2') {
             const variant = els.soraVariant.value;
-            const aspectRatio = els.aspectRatio.value;
-            const duration = Number.parseInt(els.duration.value, 10);
-            const watermark = Boolean(els.soraWatermark.checked);
-            const isPrivate = Boolean(els.soraPrivate.checked);
-            const hdRequested = Boolean(els.soraHd.checked);
+            const seconds = String(els.soraSeconds?.value || '4').trim();
+            const size = String(els.soraSize?.value || '720x1280').trim();
+
+            const allowedSeconds = new Set(['4', '8', '12']);
+            if (!allowedSeconds.has(seconds)) {
+                throw new Error('seconds 可选值为 4 / 8 / 12');
+            }
 
             const isPro = variant === 'sora-2-pro';
-            if (!isPro && hdRequested) throw new Error('sora-2 不支持 HD，请切换到 sora-2-pro');
-            if (!isPro && duration === 25) throw new Error('sora-2 不支持 25 秒，请切换到 sora-2-pro');
-            if (duration === 25 && hdRequested) throw new Error('duration=25 时 hd 不生效，请关闭 HD 或选择 10/15 秒');
+            const allowedSizes = new Set(isPro ? ['1280x720', '720x1280', '1024x1792', '1792x1024'] : ['1280x720', '720x1280']);
+            if (!allowedSizes.has(size)) {
+                throw new Error(isPro ? 'size 可选值为 1280x720 / 720x1280 / 1024x1792 / 1792x1024' : 'size 对于 sora-2 仅支持 1280x720 / 720x1280');
+            }
 
-            const notifyHook = validateNotifyHook(els.notifyHook ? els.notifyHook.value : '');
-            const images = imagesState.items.map((x) => x.value).filter(Boolean);
+            const inputReference = imagesState.inputReferenceFile || null;
+            if (inputReference && !String(inputReference.type || '').startsWith('image/')) {
+                throw new Error('input_reference 必须是图片文件（jpeg/png/webp）');
+            }
 
             const payload = {
                 model: variant,
                 prompt: trimmedPrompt,
-                aspect_ratio: aspectRatio,
-                duration,
-                hd: hdRequested,
-                watermark,
-                private: isPrivate,
-                ...(notifyHook ? { notify_hook: notifyHook } : {}),
-                ...(images.length ? { images } : {})
+                seconds,
+                size
             };
 
-            const metaSummary = `${variant} · ${aspectRatio} · ${duration}s · images=${images.length}`;
-            return { payload, metaSummary };
+            const metaSummary = `${variant} · ${size} · ${seconds}s${inputReference ? ' · ref=1' : ''}`;
+            return { payload, metaSummary, inputReference };
         }
 
         // Other models: keep minimal payload, model is provider key.
@@ -2383,6 +2584,11 @@ import { getUserId, supabase } from '@/shared/supabase';
                 task.controller.abort();
             } catch {}
         }
+        if (typeof task.videoUrl === 'string' && task.videoUrl.startsWith('blob:')) {
+            try {
+                URL.revokeObjectURL(task.videoUrl);
+            } catch {}
+        }
 
         tasksState.byLocalId.delete(id);
         tasksState.order = tasksState.order.filter((x) => x !== id);
@@ -2441,8 +2647,10 @@ import { getUserId, supabase } from '@/shared/supabase';
         });
         const data = await readJsonOrText(response);
         if (!response.ok) {
-            const msg = data?.detail || data?.error || (typeof data === 'string' ? data : null);
-            throw new Error(msg || `轮询失败（HTTP ${response.status}）`);
+            throw new Error(extractErrorMessage(data, `轮询失败（HTTP ${response.status}）`));
+        }
+        if (data && typeof data === 'object' && typeof data.code === 'string' && data.code.startsWith('fail_')) {
+            throw new Error(extractErrorMessage(data, `轮询失败（${data.code}）`));
         }
         return data;
     }
@@ -2450,6 +2658,7 @@ import { getUserId, supabase } from '@/shared/supabase';
     function buildRepositoryPayload(task) {
         const videoUrl = String(task?.videoUrl || '').trim();
         if (!videoUrl) throw new Error('缺少视频链接');
+        if (!isHttpUrl(videoUrl)) throw new Error('视频链接必须是 http/https URL');
 
         const rawPrompt = task?.request?.payload?.prompt ?? task?.payload?.prompt ?? task?.request?.prompt ?? '';
         const rawModel = task?.request?.payload?.model ?? task?.payload?.model ?? task?.request?.model ?? task?.platform ?? task?.modelKey ?? 'unknown';
@@ -2608,13 +2817,26 @@ import { getUserId, supabase } from '@/shared/supabase';
                     addTaskLog(task, msg, task.status === 'completed' ? 'success' : task.status === 'failed' ? 'error' : 'warning');
                     
                     // Auto-save to repository if completed
-                    if (task.status === 'completed' && task.videoUrl) {
+                    if (task.status === 'completed' && task.videoUrl && isHttpUrl(task.videoUrl)) {
                         saveToRepository(task);
                     }
                 }
 
                 if (task.status === 'completed' && task.videoUrl) {
                     // Auto preview removed
+                }
+
+                if (task.status === 'completed' && !task.videoUrl && task.apiSpec?.contentPath) {
+                    addTaskLog(task, '视频生成完成，正在获取视频内容…', 'info');
+                    try {
+                        const contentUrl = await tasksState.pollQueue.enqueue(() => fetchVideoContentUrl(task), { signal: task.controller.signal });
+                        setTaskStatus(task, 'completed', { videoUrl: contentUrl });
+                        if (task.videoUrl && isHttpUrl(task.videoUrl)) {
+                            saveToRepository(task);
+                        }
+                    } catch (e) {
+                        addTaskLog(task, `获取视频内容失败: ${e?.message || e}`, 'warning');
+                    }
                 }
 
                 if (isTerminalStatus(task.status)) {
@@ -2662,6 +2884,7 @@ import { getUserId, supabase } from '@/shared/supabase';
             apiKey: request.apiKey,
             apiSpec: request.apiSpec,
             payload: request.payload,
+            inputReferenceFile: request.inputReferenceFile || null,
             request,
             status: 'queued',
             progress: 0,
@@ -2694,16 +2917,35 @@ import { getUserId, supabase } from '@/shared/supabase';
         const createPromise = tasksState.createQueue.enqueue(async () => {
                 setTaskStatus(task, 'pending');
 
+                const bodyType = task.apiSpec?.createBodyType || 'json';
+                const headers = buildProviderAuthHeaders(task.apiKey, bodyType === 'json');
+                let body;
+                if (bodyType === 'multipart') {
+                    const form = new FormData();
+                    form.append('prompt', String(task.payload?.prompt ?? ''));
+                    form.append('model', String(task.payload?.model ?? ''));
+                    form.append('seconds', String(task.payload?.seconds ?? '4'));
+                    form.append('size', String(task.payload?.size ?? '720x1280'));
+                    if (task.inputReferenceFile) {
+                        form.append('input_reference', task.inputReferenceFile, task.inputReferenceFile.name || 'input_reference');
+                    }
+                    body = form;
+                } else {
+                    body = JSON.stringify(task.payload);
+                }
+
                 const response = await fetch(`${task.baseUrl}${task.apiSpec.createPath}`, {
                     method: 'POST',
-                    headers: buildProviderAuthHeaders(task.apiKey, true),
-                    body: JSON.stringify(task.payload),
+                    headers,
+                    body,
                     signal: task.controller.signal
                 });
                 const data = await readJsonOrText(response);
                 if (!response.ok) {
-                    const msg = data?.detail || data?.error || (typeof data === 'string' ? data : null);
-                    throw new Error(msg || `请求失败（HTTP ${response.status}）`);
+                    throw new Error(extractErrorMessage(data, `请求失败（HTTP ${response.status}）`));
+                }
+                if (data && typeof data === 'object' && typeof data.code === 'string' && data.code.startsWith('fail_')) {
+                    throw new Error(extractErrorMessage(data, `请求失败（${data.code}）`));
                 }
                 return data;
             }, { signal: task.controller.signal });
@@ -2711,7 +2953,7 @@ import { getUserId, supabase } from '@/shared/supabase';
         task.createPromise = createPromise;
 
         createPromise
-            .then((data) => {
+            .then(async (data) => {
                 const parsed = parseProviderTask(data);
                 let normalizedStatus = parsed.status;
                 if (parsed.videoUrl && parsed.progress >= 100 && !['failed', 'cancelled'].includes(normalizedStatus)) {
@@ -2740,7 +2982,17 @@ import { getUserId, supabase } from '@/shared/supabase';
                 addTaskLog(task, `任务创建成功: ${task.taskId}`, 'success');
                 toast(`已提交：${task.name}`, 'success', { durationMs: 1800 });
 
-                if (task.status === 'completed' && task.videoUrl) {
+                if (task.status === 'completed' && !task.videoUrl && task.apiSpec?.contentPath) {
+                    addTaskLog(task, '视频生成完成，正在获取视频内容…', 'info');
+                    try {
+                        const contentUrl = await tasksState.pollQueue.enqueue(() => fetchVideoContentUrl(task), { signal: task.controller.signal });
+                        setTaskStatus(task, 'completed', { videoUrl: contentUrl });
+                    } catch (e) {
+                        addTaskLog(task, `获取视频内容失败: ${e?.message || e}`, 'warning');
+                    }
+                }
+
+                if (task.status === 'completed' && task.videoUrl && isHttpUrl(task.videoUrl)) {
                     saveToRepository(task);
                 }
 
@@ -2862,7 +3114,8 @@ import { getUserId, supabase } from '@/shared/supabase';
                 baseUrl,
                 apiKey,
                 apiSpec,
-                payload: payloadInfo.payload
+                payload: payloadInfo.payload,
+                inputReferenceFile: modelKey === 'sora2' ? (payloadInfo.inputReference || null) : null
             };
         });
 

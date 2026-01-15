@@ -191,15 +191,19 @@ async def images_edits_and_store(
     if is_gemini:
         provider_request_endpoint = f"/v1beta/models/{model}:generateContent"
         provider_request_payload: dict[str, Any] = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseModalities": ["Text", "Image"]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"responseModalities": ["IMAGE"]},
         }
+        # Build imageConfig per API spec (banana.md)
+        image_config: dict[str, Any] = {}
         if aspect_ratio:
-            provider_request_payload["generationConfig"]["imageConfig"] = {"aspectRatio": aspect_ratio}
-        if image_size and model == "gemini-3-pro-image-preview":
+            image_config["aspectRatio"] = aspect_ratio
+        if image_size:
             normalized_size = image_size.upper()
-            if normalized_size in ("1K", "2K", "4K"):
-                provider_request_payload["generationConfig"]["image_size"] = normalized_size
+            if normalized_size in ("2K", "4K"):
+                image_config["imageSize"] = normalized_size
+        if image_config:
+            provider_request_payload["generationConfig"]["imageConfig"] = image_config
         if image_meta:
             provider_request_payload["images"] = image_meta
     else:
@@ -350,15 +354,19 @@ async def images_generations_and_store(
     if is_gemini:
         provider_request_endpoint = f"/v1beta/models/{model}:generateContent"
         provider_request_payload: dict[str, Any] = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseModalities": ["Text", "Image"]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"responseModalities": ["IMAGE"]},
         }
+        # Build imageConfig per API spec (banana.md)
+        image_config: dict[str, Any] = {}
         if aspect_ratio:
-            provider_request_payload["generationConfig"]["imageConfig"] = {"aspectRatio": aspect_ratio}
-        if size and model == "gemini-3-pro-image-preview":
+            image_config["aspectRatio"] = aspect_ratio
+        if size:
             normalized_size = size.upper()
-            if normalized_size in ("1K", "2K", "4K"):
-                provider_request_payload["generationConfig"]["image_size"] = normalized_size
+            if normalized_size in ("2K", "4K"):
+                image_config["imageSize"] = normalized_size
+        if image_config:
+            provider_request_payload["generationConfig"]["imageConfig"] = image_config
     else:
         provider_request_endpoint = "/v1/images/generations"
         provider_request_payload = {"model": model, "prompt": prompt}

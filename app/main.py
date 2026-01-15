@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.api.v1 import auth, image_proxy, images, product_recognition, storage, tasks, uploads, video
+from app.api.openai import videos as openai_videos
 from app.config import get_settings
 from app.core.static_files import CacheControlStaticFiles
 
@@ -37,6 +38,7 @@ app.include_router(uploads.router, prefix="/api/v1", tags=["Uploads"])
 app.include_router(images.router, prefix="/api/v1", tags=["User Images"])
 app.include_router(auth.router, prefix="/api/v1", tags=["Auth"])
 app.include_router(storage.router, prefix="/api/v1", tags=["Storage"])
+app.include_router(openai_videos.router, prefix="/v1", tags=["模型接口/sora2/官方格式"])
 
 # Mount static files
 app.mount("/static", CacheControlStaticFiles(directory="app/static"), name="static")
