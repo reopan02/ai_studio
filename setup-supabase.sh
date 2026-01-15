@@ -125,7 +125,19 @@ echo -e "${GREEN}✓ Supabase containers started${NC}\n"
 # Step 6b: Apply database schema
 echo -e "${YELLOW}Step 6b: Applying Supabase database schema...${NC}"
 if [ -f "$PROJECT_ROOT/infra/supabase/schema.sql" ]; then
-    docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 < "$PROJECT_ROOT/infra/supabase/schema.sql"
+    DB_CONTAINER=""
+
+    DB_CONTAINER="$(docker ps --format '{{.Names}}' | grep -E '(^|[_-])supabase-db$' | head -n 1 || true)"
+    if [ -z "$DB_CONTAINER" ]; then
+        DB_CONTAINER="$(docker ps --format '{{.Names}}\t{{.Image}}' | awk '$2 ~ /^supabase\\/postgres(:|$)/ {print $1; exit}')"
+    fi
+
+    if [ -z "$DB_CONTAINER" ]; then
+        echo -e "${RED}Error: Supabase DB container not found (expected supabase-db).${NC}"
+        exit 1
+    fi
+
+    docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < "$PROJECT_ROOT/infra/supabase/schema.sql"
     echo -e "${GREEN}✓ Applied infra/supabase/schema.sql${NC}\n"
 else
     echo -e "${YELLOW}Skipped: infra/supabase/schema.sql not found${NC}\n"
