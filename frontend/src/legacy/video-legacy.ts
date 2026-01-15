@@ -2657,8 +2657,8 @@ import { getUserId, supabase } from '@/shared/supabase';
 
     function buildRepositoryPayload(task) {
         const videoUrl = String(task?.videoUrl || '').trim();
-        if (!videoUrl) throw new Error('缺少视频链接');
-        if (!isHttpUrl(videoUrl)) throw new Error('视频链接必须是 http/https URL');
+        // Allow saving even without a valid HTTP URL - store null if blob or empty
+        const validVideoUrl = isHttpUrl(videoUrl) ? videoUrl : null;
 
         const rawPrompt = task?.request?.payload?.prompt ?? task?.payload?.prompt ?? task?.request?.prompt ?? '';
         const rawModel = task?.request?.payload?.model ?? task?.payload?.model ?? task?.request?.model ?? task?.platform ?? task?.modelKey ?? 'unknown';
@@ -2671,13 +2671,14 @@ import { getUserId, supabase } from '@/shared/supabase';
             platform: task?.platform || null,
             action: task?.action || null,
             cost: task?.cost ?? null,
+            original_url: videoUrl || null,  // Store original URL even if blob
         };
 
         return {
             title: task?.name || (task?.taskId ? `Task ${task.taskId}` : '未命名任务'),
             model,
             prompt,
-            video_url: videoUrl,
+            video_url: validVideoUrl,
             status: 'completed',
             metadata
         };
@@ -2815,9 +2816,9 @@ import { getUserId, supabase } from '@/shared/supabase';
                 if (prevStatus !== task.status && isTerminalStatus(task.status)) {
                     const msg = task.status === 'completed' ? '任务成功' : task.status === 'failed' ? '任务失败' : '任务已取消';
                     addTaskLog(task, msg, task.status === 'completed' ? 'success' : task.status === 'failed' ? 'error' : 'warning');
-                    
+
                     // Auto-save to repository if completed
-                    if (task.status === 'completed' && task.videoUrl && isHttpUrl(task.videoUrl)) {
+                    if (task.status === 'completed') {
                         saveToRepository(task);
                     }
                 }
@@ -2831,11 +2832,12 @@ import { getUserId, supabase } from '@/shared/supabase';
                     try {
                         const contentUrl = await tasksState.pollQueue.enqueue(() => fetchVideoContentUrl(task), { signal: task.controller.signal });
                         setTaskStatus(task, 'completed', { videoUrl: contentUrl });
-                        if (task.videoUrl && isHttpUrl(task.videoUrl)) {
-                            saveToRepository(task);
-                        }
+                        // Save to repository after getting content URL
+                        saveToRepository(task);
                     } catch (e) {
                         addTaskLog(task, `获取视频内容失败: ${e?.message || e}`, 'warning');
+                        // Still try to save even without video URL
+                        saveToRepository(task);
                     }
                 }
 
