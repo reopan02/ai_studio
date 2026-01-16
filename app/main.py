@@ -101,6 +101,11 @@ async def image_generate_page():
     return FileResponse("app/static/image-generate.html")
 
 
+@app.get("/toolbox")
+async def toolbox_page():
+    return FileResponse("app/static/toolbox.html")
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
