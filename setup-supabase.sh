@@ -16,6 +16,12 @@ NC='\033[0m'
 echo -e "${GREEN}=== Supabase Setup for AI Studio ===${NC}\n"
 
 # Step 1: Check if Supabase is already set up
+if [ -d ".supabase" ] && [ ! -f ".supabase/docker/.env.example" ]; then
+    echo -e "${YELLOW}Warning: Found incomplete Supabase installation (missing .env.example).${NC}"
+    echo -e "${YELLOW}Backing up to .supabase.bak and re-cloning...${NC}"
+    mv .supabase ".supabase.bak.$(date +%s)"
+fi
+
 if [ ! -d ".supabase/docker" ]; then
     echo -e "${YELLOW}Step 1: Cloning Supabase repository...${NC}"
     git clone https://github.com/supabase/supabase .supabase
@@ -164,7 +170,6 @@ echo -e "  - Supabase API: ${YELLOW}http://localhost:8000${NC}"
 echo -e ""
 echo -e "Next steps:"
 echo -e "  1. Open Supabase Studio: ${YELLOW}http://localhost:3000${NC}"
-echo -e "  2. Go to SQL Editor and run: ${YELLOW}infra/supabase/schema.sql${NC}"
-echo -e "  3. Start the backend: ${YELLOW}./start.sh${NC}"
+echo -e "  2. Start the backend: ${YELLOW}./start.sh${NC}"
 echo -e ""
 echo -e "Your app will automatically connect to Supabase at the current hostname."
