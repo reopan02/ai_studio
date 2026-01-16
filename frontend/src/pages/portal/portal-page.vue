@@ -27,6 +27,10 @@
           <stop offset="0%" stop-color="#EC4899"/>
           <stop offset="100%" stop-color="#8B5CF6"/>
         </linearGradient>
+        <linearGradient id="grad-toolbox" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#6366F1"/>
+          <stop offset="100%" stop-color="#A855F7"/>
+        </linearGradient>
         <linearGradient id="grad-admin" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#64748B"/>
           <stop offset="100%" stop-color="#3B82F6"/>
@@ -168,6 +172,16 @@
           </svg>
           <div class="portal-title">电商图片</div>
           <div class="portal-desc">基于产品素材快速生成</div>
+        </a>
+
+        <a href="/toolbox" class="card portal-card portal-card-toolbox">
+          <svg class="portal-icon" viewBox="0 0 24 24" fill="url(#grad-toolbox)" stroke="none">
+            <rect x="2" y="8" width="20" height="13" rx="3"/>
+            <rect x="7" y="3" width="10" height="4" rx="2" fill="white" opacity="0.9"/>
+            <rect x="2" y="12" width="20" height="1.5" fill="white" opacity="0.4"/>
+          </svg>
+          <div class="portal-title">工具箱</div>
+          <div class="portal-desc">多视图白底图生成等工具</div>
         </a>
       </div>
     </section>
@@ -672,6 +686,10 @@ onMounted(async () => {
 
 .portal-card-image-edit::before {
   background: linear-gradient(135deg, rgba(236, 72, 153, 0.08), rgba(139, 92, 246, 0.08));
+}
+
+.portal-card-toolbox::before {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.08));
 }
 
 .portal-card-admin::before {

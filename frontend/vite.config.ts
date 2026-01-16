@@ -23,6 +23,7 @@ export default defineConfig(({ command }) => ({
         admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
         image: fileURLToPath(new URL('./image.html', import.meta.url)),
         products: fileURLToPath(new URL('./products.html', import.meta.url)),
+        toolbox: fileURLToPath(new URL('./toolbox.html', import.meta.url)),
         'ecommerce-image': fileURLToPath(new URL('./ecommerce-image.html', import.meta.url)),
         'image-generate': fileURLToPath(new URL('./image-generate.html', import.meta.url))
       }
