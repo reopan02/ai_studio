@@ -132,11 +132,11 @@ function extractImageUrls(result) {
 // Application State
 // ==========================================
 	        const state = {
-	            config: {
-	                apiKey: localStorage.getItem(STORAGE_KEYS.apiKey) || localStorage.getItem('video_api_key') || localStorage.getItem('apiKey') || '',
-	                baseUrl: localStorage.getItem(STORAGE_KEYS.baseUrl) || localStorage.getItem('video_base_url') || localStorage.getItem('baseUrl') || ''
-	            },
-	            images: [],
+            config: {
+                apiKey: localStorage.getItem(STORAGE_KEYS.apiKey) || localStorage.getItem('video_api_key') || localStorage.getItem('apiKey') || import.meta.env.VITE_IMAGE_EDIT_API_KEY || '',
+                baseUrl: localStorage.getItem(STORAGE_KEYS.baseUrl) || localStorage.getItem('video_base_url') || localStorage.getItem('baseUrl') || import.meta.env.VITE_IMAGE_EDIT_API_URL || ''
+            },
+            images: [],
 	            currentImageIndex: -1,
 	            prompt: '',
 	            promptHistory: (() => {

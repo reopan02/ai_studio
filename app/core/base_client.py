@@ -15,7 +15,7 @@ class BaseVideoClient(ABC):
     def __init__(self, api_key: str, base_url: Optional[str] = None):
         settings = get_settings()
         self.api_key = api_key
-        self.base_url = self._normalize_base_url(base_url or settings.API_BASE_URL)
+        self.base_url = self._normalize_base_url(base_url or settings.VIDEO_GEN_API_BASE_URL)
         self.client = httpx.AsyncClient(
             timeout=settings.REQUEST_TIMEOUT,
             headers={"Authorization": f"Bearer {api_key}"},

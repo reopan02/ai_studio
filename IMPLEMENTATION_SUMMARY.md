@@ -128,8 +128,8 @@ The following testing tasks should be completed before production deployment:
 Before running, ensure the following environment variables are set:
 
 ```env
-API_KEY=your_api_key
-API_BASE_URL=https://api.gpt-best.com
+LLM_API_KEY=your_llm_api_key
+LLM_API_BASE_URL=https://api.gpt-best.com
 LLM_MODEL=openai/gpt-4o-mini
 DATABASE_URL=postgresql+asyncpg://...
 STORAGE_MASTER_KEY=...

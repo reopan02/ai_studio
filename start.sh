@@ -19,7 +19,7 @@ warn "正在进行启动前依赖检查..."
 
 # 1) Env file
 if [ ! -f ".env" ] && [ -f ".env.example" ]; then
-    warn "未发现 .env，已从 .env.example 生成（请按需填写 API_KEY 等配置）"
+    warn "未发现 .env，已从 .env.example 生成（请按需填写 LLM_API_KEY / IMAGE_* / VIDEO_* 等配置）"
     cp ".env.example" ".env"
 fi
 

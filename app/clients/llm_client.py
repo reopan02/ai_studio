@@ -17,8 +17,8 @@ load_dotenv()
 
 class LLMConfig:
     """Configuration for LLM API"""
-    api_key: str = os.getenv("API_KEY", "")
-    base_url: str = os.getenv("API_BASE_URL", "https://api.gpt-best.com")
+    api_key: str = os.getenv("LLM_API_KEY", "")
+    base_url: str = os.getenv("LLM_API_BASE_URL", "https://api.gpt-best.com")
     model: str = os.getenv("LLM_MODEL", "openai/gpt-4o-mini")
 
     @classmethod
@@ -105,7 +105,7 @@ async def recognize_product_with_metadata(
 
     client = create_llm_client()
     if not client:
-        raise ProductRecognitionError("Failed to initialize LLM client. Check API_KEY and API_BASE_URL configuration.")
+        raise ProductRecognitionError("Failed to initialize LLM client. Check LLM_API_KEY and LLM_API_BASE_URL configuration.")
 
     # System prompt for product recognition
     system_prompt = """你是一个专业的产品识别助手。请仔细观察图片中的产品,并提取以下信息:

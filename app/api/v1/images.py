@@ -130,11 +130,16 @@ async def images_edits_and_store(
     is_gemini = GeminiImageClient.is_gemini_model(model)
 
     settings = get_settings()
-    api_key = (x_api_key or settings.API_KEY or "").strip()
+    api_key = (x_api_key or settings.IMAGE_EDIT_API_KEY or "").strip()
     if not api_key:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="API_KEY is not configured")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="IMAGE_EDIT_API_KEY is not configured")
 
-    base_url = (x_base_url or settings.API_BASE_URL or "").strip() or None
+    base_url = (x_base_url or settings.IMAGE_EDIT_API_BASE_URL or "").strip() or None
+    if not base_url and not is_gemini:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="IMAGE_EDIT_API_BASE_URL is not configured",
+        )
 
     try:
         provider_images: list[tuple[str, bytes, str]] = []
@@ -229,7 +234,7 @@ async def images_edits_and_store(
         "image_size": image_size,
         "images": image_meta,
         "provider": {
-            "base_url": base_url or settings.API_BASE_URL,
+            "base_url": base_url or settings.IMAGE_EDIT_API_BASE_URL,
             "requests": {
                 "count": n,
                 "endpoint": provider_request_endpoint,
@@ -306,12 +311,17 @@ async def images_generations_and_store(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid size. Must be one of: {', '.join(sorted(valid_sizes))}")
 
     settings = get_settings()
-    api_key = (x_api_key or settings.API_KEY or "").strip()
+    api_key = (x_api_key or settings.IMAGE_GEN_API_KEY or "").strip()
     if not api_key:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="API_KEY is not configured")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="IMAGE_GEN_API_KEY is not configured")
 
-    base_url = (x_base_url or settings.API_BASE_URL or "").strip() or None
+    base_url = (x_base_url or settings.IMAGE_GEN_API_BASE_URL or "").strip() or None
     is_gemini = GeminiImageClient.is_gemini_model(model)
+    if not base_url and not is_gemini:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="IMAGE_GEN_API_BASE_URL is not configured",
+        )
 
     try:
         provider_responses: list[Any] = []
@@ -383,7 +393,7 @@ async def images_generations_and_store(
         "aspect_ratio": aspect_ratio,
         "response_format": response_format,
         "provider": {
-            "base_url": base_url or settings.API_BASE_URL,
+            "base_url": base_url or settings.IMAGE_GEN_API_BASE_URL,
             "requests": {
                 "count": n,
                 "endpoint": provider_request_endpoint,

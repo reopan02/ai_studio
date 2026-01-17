@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+import httpx
 
 from app.api.v1 import auth, image_proxy, images, product_recognition, storage, tasks, uploads, video
 from app.api.openai import videos as openai_videos
@@ -39,6 +40,46 @@ app.include_router(images.router, prefix="/api/v1", tags=["User Images"])
 app.include_router(auth.router, prefix="/api/v1", tags=["Auth"])
 app.include_router(storage.router, prefix="/api/v1", tags=["Storage"])
 app.include_router(openai_videos.router, prefix="/v1", tags=["模型接口/sora2/官方格式"])
+
+
+@app.api_route("/supabase/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def supabase_proxy(path: str, request: Request):
+    settings = get_settings()
+    # Ensure no double slash if path is empty or starts with /
+    target_url = f"{settings.SUPABASE_URL.rstrip('/')}/{path.lstrip('/')}"
+    
+    # Forward headers
+    headers = dict(request.headers)
+    # Remove headers that might cause issues
+    headers.pop("host", None)
+    headers.pop("content-length", None)
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            body = await request.body()
+            
+            proxy_req = client.build_request(
+                request.method,
+                target_url,
+                headers=headers,
+                content=body,
+                params=request.query_params,
+            )
+            
+            response = await client.send(proxy_req, stream=True)
+            
+            return StreamingResponse(
+                response.aiter_raw(),
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                background=None
+            )
+        except httpx.RequestError as exc:
+            return Response(
+                content=f"Proxy error: {exc}",
+                status_code=502
+            )
+
 
 # Mount static files
 app.mount("/static", CacheControlStaticFiles(directory="app/static"), name="static")

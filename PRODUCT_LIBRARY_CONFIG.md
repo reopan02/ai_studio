@@ -10,8 +10,8 @@ Add the following environment variables to your `.env` file:
 
 ```env
 # LLM API Configuration (for product recognition)
-API_KEY=your_api_key_here
-API_BASE_URL=https://api.gpt-best.com
+LLM_API_KEY=your_llm_api_key
+LLM_API_BASE_URL=https://api.gpt-best.com
 LLM_MODEL=openai/gpt-4o-mini
 
 # Database Configuration (if not already set)
@@ -24,7 +24,7 @@ JWT_SECRET_KEY=your_jwt_secret_key
 
 ## LLM API Configuration
 
-The product library uses the same API endpoint configured for image/video generation. The system supports:
+The product library uses the LLM API endpoint configured via `LLM_API_*`. The system supports:
 
 - **StructLLM**: Constrains LLM responses to predefined Pydantic schemas
 - **Gemini API**: Provides vision capabilities for image understanding
@@ -164,7 +164,7 @@ Features:
 
 ### AI Recognition Not Working
 
-1. Verify `API_KEY` and `API_BASE_URL` are set
+1. Verify `LLM_API_KEY` and `LLM_API_BASE_URL` are set
 2. Check `structllm` is installed: `pip install structllm`
 3. Ensure LLM model supports vision (image input)
 4. Check API quota/rate limits

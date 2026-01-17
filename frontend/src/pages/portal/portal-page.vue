@@ -99,7 +99,7 @@
                 :type="showBaseUrl ? 'text' : 'password'"
                 class="form-input"
                 v-model="baseUrl"
-                placeholder="https://api.example.com"
+                placeholder="输入您的 Base URL"
               >
               <button class="toggle-btn" @click="showBaseUrl = !showBaseUrl" type="button">
                 <svg v-if="!showBaseUrl" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

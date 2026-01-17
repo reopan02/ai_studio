@@ -14,7 +14,7 @@ router = APIRouter()
 @lru_cache()
 def get_task_manager() -> TaskManager:
     settings = get_settings()
-    return TaskManager(api_key=settings.API_KEY)
+    return TaskManager(api_key=settings.VIDEO_GEN_API_KEY)
 
 
 @router.post("/video/generate", response_model=TaskResponse)

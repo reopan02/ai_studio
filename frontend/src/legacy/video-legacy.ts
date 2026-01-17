@@ -128,8 +128,8 @@ import { getUserId, supabase } from '@/shared/supabase';
     }
 
     // Load Config
-    els.apiKey.value = localStorage.getItem('video_api_key') || '';
-    const defaultBaseUrl = els.baseUrl.value || 'https://api.gpt-best.com';
+    els.apiKey.value = localStorage.getItem('video_api_key') || import.meta.env.VITE_VIDEO_GEN_API_KEY || '';
+    const defaultBaseUrl = els.baseUrl.value || import.meta.env.VITE_VIDEO_GEN_API_URL || '';
     const savedBaseUrl = localStorage.getItem('video_base_url') || defaultBaseUrl;
     try {
         els.baseUrl.value = normalizeApiBaseUrl(savedBaseUrl);

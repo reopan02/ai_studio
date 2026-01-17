@@ -24,11 +24,11 @@ def _normalize_authorization(authorization: str | None) -> str:
     value = str(authorization or "").strip()
     if not value:
         settings = get_settings()
-        api_key = str(settings.API_KEY or "").strip()
+        api_key = str(settings.VIDEO_GEN_API_KEY or "").strip()
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="API_KEY is not configured",
+                detail="VIDEO_GEN_API_KEY is not configured",
             )
         return f"Bearer {api_key}"
 
@@ -42,11 +42,11 @@ def _normalize_authorization(authorization: str | None) -> str:
 
 def _upstream_url(path: str) -> str:
     settings = get_settings()
-    base_url = str(settings.API_BASE_URL or "").strip().rstrip("/")
+    base_url = str(settings.VIDEO_GEN_API_BASE_URL or "").strip().rstrip("/")
     if not base_url:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="API_BASE_URL is not configured",
+            detail="VIDEO_GEN_API_BASE_URL is not configured",
         )
     normalized_path = str(path or "").strip()
     if not normalized_path.startswith("/"):

@@ -362,9 +362,9 @@ function onPromptInput() {
 }
 
 function loadApiConfig() {
-  // Load from global config keys (set in portal page)
-  apiConfig.apiKey = localStorage.getItem('global_api_key') || localStorage.getItem('video_api_key') || '';
-  apiConfig.baseUrl = localStorage.getItem('global_base_url') || localStorage.getItem('video_base_url') || '';
+  // Load from global config keys (set in portal page), fallback to env vars
+  apiConfig.apiKey = localStorage.getItem('global_api_key') || localStorage.getItem('video_api_key') || import.meta.env.VITE_IMAGE_GEN_API_KEY || '';
+  apiConfig.baseUrl = localStorage.getItem('global_base_url') || localStorage.getItem('video_base_url') || import.meta.env.VITE_IMAGE_GEN_API_URL || '';
 }
 
 async function generateImage() {

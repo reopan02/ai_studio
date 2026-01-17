@@ -38,7 +38,14 @@
 
 后端（`.env`）至少需要：
 
-- `API_KEY`：中转/提供商 Key（部分功能用到）
+- `LLM_API_KEY`：LLM Key（产品识别/LLM 能力）
+- `LLM_API_BASE_URL`：LLM 接口地址
+- `IMAGE_GEN_API_KEY`：图像生成 Key
+- `IMAGE_GEN_API_BASE_URL`：图像生成接口地址
+- `IMAGE_EDIT_API_KEY`：图像编辑 Key
+- `IMAGE_EDIT_API_BASE_URL`：图像编辑接口地址
+- `VIDEO_GEN_API_KEY`：视频生成 Key
+- `VIDEO_GEN_API_BASE_URL`：视频生成接口地址
 - `SUPABASE_JWT_SECRET`：必须与 Supabase `JWT_SECRET` 一致（后端用来校验 Supabase Access Token）
 
 前端（`frontend/.env`）需要：

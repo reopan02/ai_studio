@@ -7,13 +7,23 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     ENV: str = "development"
 
-    API_BASE_URL: str = "https://api.gpt-best.com"
-    API_KEY: str
+    LLM_API_BASE_URL: str = "https://api.gpt-best.com"
+    LLM_API_KEY: str = ""
     LLM_MODEL: str = "openai/gpt-4o-mini"
+
+    IMAGE_GEN_API_BASE_URL: str = ""
+    IMAGE_GEN_API_KEY: str = ""
+
+    IMAGE_EDIT_API_BASE_URL: str = ""
+    IMAGE_EDIT_API_KEY: str = ""
+
+    VIDEO_GEN_API_BASE_URL: str = ""
+    VIDEO_GEN_API_KEY: str = ""
 
     UPLOAD_URL: Optional[str] = None
     UPLOAD_APIKEY: Optional[str] = None
 
+    SUPABASE_URL: str = "http://localhost:8000"
     SUPABASE_JWT_SECRET: Optional[str] = None
 
     DATABASE_URL: Optional[str] = None
